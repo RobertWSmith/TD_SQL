@@ -1,0 +1,97 @@
+ADJ_ORDER_QTY:
+IIf(
+-- logical statement
+IsNull( [ REJ_REAS_ID ]  )  Or
+/*
+(
+-- FRDD ONLY
+(  [ METRIC_TYPE ]  = "FRDD" And  (  [ REJ_REAS_ID ]  = "Z2" And  (  [ PO_TYPE_ID ]  = "DT" Or  [ PO_TYPE_ID ]  = "WA" Or  [ PO_TYPE_ID ]  = "WC" Or  [ PO_TYPE_ID ]  = "WS" )  )  )
+-- FRDD & FCDD
+Or  [ REJ_REAS_ID ]  = "Z6" Or  [ REJ_REAS_ID ]  = "ZW" Or  [ REJ_REAS_ID ]  = "ZX" Or  [ REJ_REAS_ID ]  = "ZY" ) ,
+-- return for true
+IIf (  [ ACTL_DELIV_QTY ] > [ SUMOFORDER_QTY ] ,  [ ACTL_DELIV_QTY ] ,  [ SUMOFORDER_QTY ]  ) ,
+-- return for false
+IIf ( IsNull (  [ OTD_ACTL_DELIV_DT ]  ) , 0, IIf (  [ ACTL_DELIV_QTY ] > [ SUMOFCNFRM_QTY ] ,  [ ACTL_DELIV_QTY ] ,  [ SUMOFCNFRM_QTY ]  )  )  )
+*/
+
+CASE
+    WHEN ( ORD.REJ_REAS_ID = '' ) OR ( ORD.REJ_REAS_ID = 'Z2' AND ORD.PO_TYPE_ID IN ( 'DT', 'WA', 'WC', 'WS' ) )
+            OR ( ORD.REJ_REAS_ID IN ( 'Z6', 'ZW', 'ZX', 'ZY' ) )
+        THEN ( CASE
+            WHEN DLV.DELIV_QTY > ORD.ORDER_QTY
+                THEN DLV.DELIV_QTY
+            ELSE ORD.ORDER_QTY
+        END )
+    ELSE ( CASE
+        WHEN DLV.ORDER_ID || DLV.ORDER_LINE_NBR IS NULL
+            THEN 0
+        ELSE ( CASE
+            WHEN DLV.DELIV_QTY > ORD.CNFRM_QTY
+                THEN DLV.DELIV_QTY
+            ELSE ORD.CNFRM_QTY
+        END )
+    END )
+END AS ADJ_ORD_QTY
+
+-- FRDD CASE
+CASE
+    WHEN(
+        ( ODC.REJ_REAS_ID = '' )
+            OR ( ODC.REJ_REAS_ID = 'Z2' AND ODC.PO_TYPE_ID IN ( 'DT', 'WA', 'WC', 'WS' ) )
+            OR ( ODC.REJ_REAS_ID IN ( 'Z6', 'ZW', 'ZX', 'ZY' ) )
+        )
+        THEN
+            (
+                CASE
+                    WHEN DDC.DELIV_QTY > ODC.ORDER_QTY
+                        THEN DDC.DELIV_QTY
+                    ELSE ODC.ORDER_QTY
+                END
+            )
+    ELSE
+        (
+            CASE
+                WHEN DDC.DELIV_DT IS NULL
+                    THEN 0
+                ELSE
+                    (
+                        CASE
+                            WHEN DDC.DELIV_QTY > ODC.CNFRM_QTY
+                                THEN DDC.DELIV_QTY
+                            ELSE ODC.CNFRM_QTY
+                        END
+                    )
+            END
+        )
+END AS FRDD_ADJ_ORDER_QTY,
+-- FCDD CASE
+CASE
+    WHEN
+        (
+            ( ODC.REJ_REAS_ID IS NULL )
+            OR ( ODC.REJ_REAS_ID IN ( 'Z6', 'ZW', 'ZX', 'ZY' ) )
+        )
+        THEN
+            (
+                CASE
+                    WHEN DDC.DELIV_QTY > ODC.ORDER_QTY
+                        THEN DDC.DELIV_QTY
+                    ELSE ODC.ORDER_QTY
+                END
+            )
+    ELSE
+        (
+            CASE
+                WHEN DDC.DELIV_DT IS NULL
+                    THEN 0
+                ELSE
+                    (
+                        CASE
+                            WHEN DDC.DELIV_QTY > ODC.CNFRM_QTY
+                                THEN DDC.DELIV_QTY
+                            ELSE ODC.CNFRM_QTY
+                        END
+                    )
+            END
+        )
+END AS FCDD_ADJ_ORDER_QTY,

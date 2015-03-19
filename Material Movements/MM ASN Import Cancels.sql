@@ -1,0 +1,104 @@
+﻿SELECT
+    CAST('MM' AS VARCHAR(3)) AS DATA_CTGY
+    , CAST('IC' AS VARCHAR(25)) AS DATA_TYPE
+    , CHG.DEL_MTH_DT AS RPT_MTH_DT
+    , DDI.MATL_ID
+    , DDI.FACILITY_ID
+
+    , DD.SHIP_TO_CUST_ID
+    , DD.VEND_ID
+
+    , DDI.BASE_UOM_CD
+    , (-1 * SUM(DDI.ACTL_DELIV_QTY)) AS ITM_QTY
+
+FROM (
+
+    SELECT
+        CDI.DOC_ID
+        , CDI.DOC_ITM_ID
+        , CDI.SRC_CRT_DT
+        , CAST(CDI.SRC_CRT_DT - 1 AS DATE) AS EXP_REC_DT
+        , CAL.MONTH_DT AS DEL_MTH_DT
+
+    FROM GDYR_BI_VWS.CHG_DOC_ITM CDI
+
+        INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+            ON CAL.DAY_DATE = CDI.SRC_CRT_DT
+
+    WHERE
+        CDI.ORIG_SYS_ID = 2
+        AND CDI.OBJ_CLS_CD = 'LIEFERUNG'
+        AND CDI.SAP_TBL_NM = 'LIPS'
+        AND CDI.SAP_COL_NM  = 'KEY'
+        AND CDI.CHG_TYP_CD = 'D'
+        AND CDI.SRC_CRT_DT BETWEEN CAST(#sq(prompt('P_BeginDate', 'date'))# AS DATE)
+            AND CAST(#sq(prompt('P_EndDate', 'date'))# AS DATE)
+
+    ) CHG
+
+    INNER JOIN GDYR_BI_VWS.DELIV_DOC_ITM_CURR DDI
+        ON DDI.DELIV_DOC_ID = CHG.DOC_ID
+        AND DDI.DELIV_DOC_ITM_ID = CHG.DOC_ITM_ID
+        AND DDI.ORIG_SYS_ID = 2
+        AND CHG.EXP_REC_DT BETWEEN DDI.EFF_DT AND DDI.EXP_DT
+        -- DELIV ORIGINATED FROM PURCHASE ORDER
+        AND DDI.SD_DOC_CTGY_CD = 'V'
+        -- ASN ITEM CATEGORY
+        AND DDI.ITM_CTGY_CD = 'ELN'
+
+    INNER JOIN (
+        GDYR_VWS.PRCH_DOC_ITM PDI
+
+            INNER JOIN GDYR_VWS.PRCH_DOC PD
+                ON PD.PRCH_DOC_ID = PDI.PRCH_DOC_ID
+                AND PD.ORIG_SYS_ID = 2
+                AND PD.EXP_DT = CAST('5555-12-31' AS DATE)
+                AND PD.CO_CD IN ('N101', 'N102', 'N266')
+                AND PD.PRCH_CTGY_CD = 'F'
+                -- IDENTIFIES STANDARD PO'S TO EXCLUDE INTERNAL STOCK TRANSFERS
+                -- INTERNAL STOCK TRANSFERS WILL BE CAPTURED BY MATERIAL MOVEMENTS
+                AND PD.PRCH_TYPE_CD = 'NB'
+            )
+        ON PDI.PRCH_DOC_ID = DDI.SLS_DOC_ID
+        AND PDI.PRCH_DOC_ITM_ID = DDI.SLS_DOC_ITM_ID
+        AND PDI.ORIG_SYS_ID = 2
+        AND PDI.EXP_DT = CAST('5555-12-31' AS DATE)
+        AND PDI.CO_CD IN ('N101', 'N102', 'N266')
+        AND PDI.CNFRM_CNTRL_ID IN ('Z004', 'Z005')
+
+    INNER JOIN GDYR_VWS.DELIV_DOC DD
+        ON DD.FISCAL_YR = DDI.FISCAL_YR
+        AND DD.DELIV_DOC_ID = DDI.DELIV_DOC_ID
+        AND CHG.EXP_REC_DT BETWEEN DD.EFF_DT AND DD.EXP_DT
+        AND DD.ORIG_SYS_ID = 2
+        AND DD.SD_DOC_CTGY_CD = '7'
+        AND DD.DELIV_TYP_CD = 'EL'
+
+WHERE
+    DDI.MATL_ID IN (
+            SELECT
+                MATL_ID
+            FROM GDYR_BI_VWS.NAT_MATL_CURR
+            WHERE
+                MATL_TYPE_ID = 'PCTL'
+                AND EXT_MATL_GRP_ID = 'TIRE'
+                AND PBU_NBR = CAST(#prompt('P_PBU', 'text')# AS CHAR(2))
+        )
+    AND DDI.FACILITY_ID IN (
+            SELECT
+                FACILITY_ID
+            FROM GDYR_BI_VWS.NAT_FACILITY_EN_CURR
+            WHERE
+                SALES_ORG_CD IN ('N306', 'N316', 'N326')
+                AND DISTR_CHAN_CD = '81'
+        )
+
+GROUP BY
+    DATA_CTGY
+    , DATA_TYPE
+    , RPT_MTH_DT
+    , DDI.MATL_ID
+    , DDI.FACILITY_ID
+    , DD.SHIP_TO_CUST_ID
+    , DD.VEND_ID
+    , DDI.BASE_UOM_CD

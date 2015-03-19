@@ -1,0 +1,66 @@
+SELECT
+    OO.DAY_DATE,
+    OO.ORDER_ID,
+    OO.ORDER_LINE_NBR,
+    CUST.CUST_NAME AS SHIP_TO_CUST_NAME,
+    CUST.OWN_CUST_ID,
+    CUST.OWN_CUST_NAME,
+    SDI.SRC_CRT_USR_ID,
+    OD.*
+    
+FROM (
+            SELECT
+                OPN.ORDER_FISCAL_YR,
+                OPN.ORDER_ID,
+                OPN.ORDER_LINE_NBR,
+                CAL.DAY_DATE,
+                OPN.SLS_QTY_UNIT_MEAS_ID AS QTY_UOM,
+                CASE WHEN OPN.INTRA_CMPNY_FLG = 'Y' THEN 'Y' END AS INTRA_CMPNY_FLG,
+                CASE WHEN OPN.CREDIT_HOLD_FLG = 'Y' THEN 'Y' END AS CREDIT_HOLD_FLG,
+                SUM( OPN.OPEN_ORDER_QTY ) AS TOT_OPEN_ORDER_QTY,
+                SUM( CASE WHEN OPN.OPEN_ORDER_STATUS_CD = 'C' THEN OPN.OPEN_ORDER_QTY ELSE 0 END ) AS OPEN_CONFIRMED_QTY,
+                SUM( CASE WHEN OPN.OPEN_ORDER_STATUS_CD = 'U' THEN OPN.OPEN_ORDER_QTY ELSE 0 END ) AS UNCONFIRMED_QTY,
+                SUM( CASE WHEN OPN.OPEN_ORDER_STATUS_CD = 'B' THEN OPN.OPEN_ORDER_QTY ELSE 0 END ) AS BACK_ORDER_QTY,
+                SUM( CASE WHEN OPN.OPEN_ORDER_STATUS_CD NOT IN ( 'C', 'U', 'B' ) THEN OPN.OPEN_ORDER_QTY ELSE 0 END ) AS OTHER_OPEN_QTY
+            
+            FROM GDYR_BI_VWS.GDYR_CAL CAL
+                    
+                INNER JOIN GDYR_VWS.OPEN_ORDER OPN
+                    ON CAL.DAY_DATE BETWEEN OPN.EFF_DT AND OPN.EXP_DT
+            
+            WHERE
+                OPN.ORIG_SYS_ID = 2
+                AND OPN.SRC_SYS_ID = 2
+                AND OPN.SBU_ID = 2
+                AND ( OPN.EXP_DT >= CAST( ( SUBSTR( ( ADD_MONTHS( CURRENT_DATE, -18 ) ), 1, 7 ) || '-01' ) AS DATE )
+                    OR CAST( ( SUBSTR( ( ADD_MONTHS( CURRENT_DATE, -18 ) ), 1, 7 ) || '-01' ) AS DATE ) BETWEEN OPN.EFF_DT AND OPN.EXP_DT )
+                AND CAL.DAY_DATE BETWEEN DATE '2014-03-24' AND DATE '2014-03-28'
+                
+            GROUP BY
+                OPN.ORDER_FISCAL_YR,
+                OPN.ORDER_ID,
+                OPN.ORDER_LINE_NBR,
+                CAL.DAY_DATE,
+                OPN.SLS_QTY_UNIT_MEAS_ID,
+                OPN.INTRA_CMPNY_FLG,
+                OPN.CREDIT_HOLD_FLG
+            ) OO
+
+    INNER JOIN NA_BI_VWS.ORDER_DETAIL OD
+        ON OO.DAY_DATE BETWEEN OD.EFF_DT AND OD.EXP_DT
+        AND OD.ORDER_ID = OO.ORDER_ID
+        AND OD.ORDER_LINE_NBR = OO.ORDER_LINE_NBR
+        
+    INNER JOIN NA_BI_VWS.NAT_SLS_DOC_ITM SDI
+        ON OO.DAY_DATE BETWEEN SDI.EFF_DT AND SDI.EXP_DT
+        AND SDI.SLS_DOC_ID = OD.ORDER_ID
+        AND SDI.SLS_DOC_ITM_ID = OD.ORDER_LINE_NBR
+        
+    INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR CUST
+        ON CUST.SHIP_TO_CUST_ID = OD.SHIP_TO_CUST_ID
+        AND CUST.OWN_CUST_ID IN ( '00A0006929' )
+        
+WHERE
+    --sdi.src_crt_usr_id not like 'LD%'    
+    oo.order_id = '0084637774'
+    and oo.order_line_nbr = 20

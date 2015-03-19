@@ -1,0 +1,117 @@
+﻿SELECT
+    Q.TYP
+    , Q.DESCR
+    
+    , Q.SALES_ORG_CD
+    , Q.DISTR_CHAN_CD
+    , Q.CUST_GRP_ID
+    
+    , Q.PBU_NBR
+    , Q.CATEGORY_CD
+    , Q.MATL_ID
+    
+    , F.POSTED_DT AS BUS_DT
+    , Q.QUANTITY / CAL.TTL_DAYS_IN_MNTH AS QUANTITY
+
+FROM (
+
+    SELECT
+        CAST('SP' AS VARCHAR(10)) AS TYP
+        , CAST(SP.DP_LAG_DESC AS VARCHAR(10)) AS DESCR
+
+        , SP.SALES_ORG_CD
+        , SP.DISTR_CHAN_CD
+        , SP.CUST_GRP_ID
+        
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR AS CATEGORY_CD
+        , SP.MATL_ID
+
+        , SP.PERD_BEGIN_MTH_DT
+
+        , SUM(SP.OFFCL_SOP_SLS_PLN_QTY) AS QUANTITY
+
+    FROM NA_BI_VWS.CUST_SLS_PLN_SNAP SP
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = SP.MATL_ID
+            AND M.PBU_NBR = '01'--IN ('01','03')
+            AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+    WHERE
+        SP.DP_LAG_DESC = 'LAG 0'
+        AND SP.PERD_BEGIN_MTH_DT BETWEEN CURRENT_DATE-1 AND ADD_MONTHS(CURRENT_DATE-1, 4) - EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, 4))
+        AND SP.OFFCL_SOP_SLS_PLN_QTY <> 0
+        AND SP.SALES_ORG_CD NOT IN ('N306', 'N316', 'N326', 'N340')
+        AND SP.DISTR_CHAN_CD NOT IN ('81')
+
+    GROUP BY
+        TYP
+        , DESCR
+        
+        , SP.SALES_ORG_CD
+        , SP.DISTR_CHAN_CD
+        , SP.CUST_GRP_ID
+        
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , SP.MATL_ID
+        
+        , SP.PERD_BEGIN_MTH_DT
+
+    UNION ALL
+
+    SELECT
+        CAST('SP' AS VARCHAR(10)) AS TYP
+        , CAST(SP.LAG_DESC AS VARCHAR(10)) AS DESCR
+
+        , SP.SALES_ORG_CD
+        , SP.DISTR_CHAN_CD
+        , SP.CUST_GRP_ID
+        
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR AS CATEGORY_CD
+        , SP.MATL_ID
+        
+        , SP.PERD_BEGIN_MTH_DT
+        , SUM(SP.OFFCL_SOP_SLS_PLN_QTY) AS QUANTITY
+
+    FROM NA_BI_VWS.CUST_SLS_PLN_SNAP SP
+            
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = SP.MATL_ID
+            AND M.PBU_NBR = '01'--IN ('01','03')
+            AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+    WHERE
+        SP.LAG_DESC = '0'
+        AND SP.PERD_BEGIN_MTH_DT BETWEEN ADD_MONTHS(CURRENT_DATE-1, -3) - (EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, -3)) -1) AND CURRENT_DATE-1
+        AND SP.OFFCL_SOP_SLS_PLN_QTY <> 0
+        AND SP.SALES_ORG_CD NOT IN ('N306', 'N316', 'N326', 'N340')
+        AND SP.DISTR_CHAN_CD NOT IN ('81')
+
+    GROUP BY
+        TYP
+        , DESCR
+        
+        , SP.SALES_ORG_CD
+        , SP.DISTR_CHAN_CD
+        , SP.CUST_GRP_ID
+        
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , SP.MATL_ID
+        
+        , SP.PERD_BEGIN_MTH_DT
+
+    ) Q
+    
+    INNER JOIN GDYR_VWS.DMAN_GRP_PRD_FCTR F
+        ON F.MEAS_DT = Q.PERD_BEGIN_MTH_DT
+        AND F.FNL_PERDY_ID = 'D'
+        AND F.PERDY_ID = 'M'
+        AND F.EXP_DT = DATE '5555-12-31'
+
+    INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+        ON CAL.DAY_DATE = Q.PERD_BEGIN_MTH_DT
+

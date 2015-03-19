@@ -1,0 +1,28 @@
+﻿SELECT
+    PRCH_DOC_ID
+
+    , CO_CD
+    , PRCH_CTGY_CD
+    , PRCH_TYPE_CD
+    , PRCH_TYPE_CNTL_IND
+
+    , DEL_IND
+    , STATUS_IND
+
+    , PRCH_DT
+    , CREATE_DT
+    , CREATOR_ID
+
+    , VEND_ID
+
+    , PRCH_ORG_CD
+    , PRCH_GRP_CD
+
+    , FACILITY_ID
+    , INCOTERM_CD
+    , INCOTERM_TXT
+
+FROM GDYR_VWS.PRCH_DOC
+WHERE
+    ORIG_SYS_ID = 2
+    AND EXP_DT = CAST('5555-12-31' AS DATE)

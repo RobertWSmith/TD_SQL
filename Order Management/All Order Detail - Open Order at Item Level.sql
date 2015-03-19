@@ -1,0 +1,121 @@
+﻿SELECT
+    O.SHIP_TO_CUST_ID
+    , O.CUST_NAME
+    , O.OWN_CUST_ID
+
+    , O.MATL_ID
+    , O.DESCR
+    , O.PBU_NBR
+    , O.PBU_NAME
+
+    , O.FACILITY_ID
+    , O.FACILITY_NAME
+
+    , O.QTY_UNIT_MEAS_ID
+    , SUM(O.OD_ORDER_QTY) AS OL_ORDER_QTY
+    , SUM(O.OD_CNFRM_QTY) AS OL_CNFRM_QTY
+
+    , SUM(O.OPEN_CNFRM_QTY) AS OPEN_CNFRM_QTY
+    , SUM(O.UNCNFRM_QTY) AS UNCNFRM_QTY
+    , SUM(O.BACK_ORDER_QTY) AS BACK_ORDER_QTY
+    , SUM(O.DEFER_QTY) AS DEFER_QTY
+    , SUM(O.IN_PROC_QTY) AS IN_PROC_QTY
+    , SUM(O.WAIT_LIST_QTY) AS WAIT_LIST_QTY
+
+FROM (
+
+    SELECT
+        OD.ORDER_FISCAL_YR
+        , OD.ORDER_ID
+        , OD.ORDER_LINE_NBR
+
+        , OD.SHIP_TO_CUST_ID
+        , C.CUST_NAME
+        , C.OWN_CUST_ID
+        , C.OWN_CUST_NAME
+
+        , OD.MATL_ID
+        , M.DESCR
+        , M.PBU_NBR
+        , M.PBU_NAME
+
+        , OD.FACILITY_ID
+        , F.FACILITY_NAME
+
+        , OD.QTY_UNIT_MEAS_ID
+        , MAX(OD.ORDER_QTY) AS OD_ORDER_QTY
+        , SUM(OD.CNFRM_QTY) AS OD_CNFRM_QTY
+        
+        , OOL.OPEN_CNFRM_QTY
+        , OOL.UNCNFRM_QTY
+        , OOL.BACK_ORDER_QTY
+        , OOL.DEFER_QTY
+        , OOL.IN_PROC_QTY
+        , OOL.WAIT_LIST_QTY
+
+    FROM NA_BI_VWS.ORDER_DETAIL_CURR OD
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR M
+            ON M.MATL_ID = OD.MATL_ID
+            AND M.EXT_MATL_GRP_ID = 'TIRE'
+            AND M.PBU_NBR = '01'
+
+        INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR C
+            ON C.SHIP_TO_CUST_ID = OD.SHIP_TO_CUST_ID
+
+        INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+            ON F.FACILITY_ID = OD.FACILITY_ID
+            AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+            AND F.DISTR_CHAN_CD = '81'
+
+        INNER JOIN NA_BI_VWS.OPEN_ORDER_ORDLN_CURR OOL
+            ON OOL.ORDER_FISCAL_YR = OD.ORDER_FISCAL_YR
+            AND OOL.ORDER_ID = OD.ORDER_ID
+            AND OOL.ORDER_LINE_NBR = OD.ORDER_LINE_NBR
+
+    WHERE
+        OD.ORDER_CAT_ID = 'C'
+        AND OD.RO_PO_TYPE_IND = 'N'
+
+    GROUP BY
+        OD.ORDER_FISCAL_YR
+        , OD.ORDER_ID
+        , OD.ORDER_LINE_NBR
+
+        , OD.SHIP_TO_CUST_ID
+        , C.CUST_NAME
+        , C.OWN_CUST_ID
+        , C.OWN_CUST_NAME
+
+        , OD.MATL_ID
+        , M.DESCR
+        , M.PBU_NBR
+        , M.PBU_NAME
+
+        , OD.FACILITY_ID
+        , F.FACILITY_NAME
+
+        , OD.QTY_UNIT_MEAS_ID
+        --, MAX(OD.ORDER_QTY) AS OD_ORDER_QTY
+        --, SUM(OD.CNFRM_QTY) AS OD_CNFRM_QTY
+
+        , OOL.OPEN_CNFRM_QTY
+        , OOL.UNCNFRM_QTY
+        , OOL.BACK_ORDER_QTY
+        , OOL.DEFER_QTY
+        , OOL.IN_PROC_QTY
+        , OOL.WAIT_LIST_QTY
+
+    ) O
+
+GROUP BY
+    O.SHIP_TO_CUST_ID
+    , O.CUST_NAME
+    , O.OWN_CUST_ID
+    , O.MATL_ID
+    , O.DESCR
+    , O.PBU_NBR
+    , O.PBU_NAME
+    , O.FACILITY_ID
+    , O.FACILITY_NAME
+    , O.QTY_UNIT_MEAS_ID

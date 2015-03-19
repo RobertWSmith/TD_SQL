@@ -1,0 +1,60 @@
+SELECT
+    DDC.ACTL_GOODS_ISS_DT AS "Actual Goods Issue Date",
+    DDC.DELIV_LINE_FACILITY_ID AS "Facility ID",
+    DDC.MATL_ID AS "Material ID",
+    MATL.DESCR AS "Material Description",
+    MATL.PBU_NBR AS "PBU Nbr.",
+    MATL.PBU_NAME AS "PBU Name",
+    MATL.MKT_AREA_NBR AS "Market Area Nbr.",
+    MATL.MKT_AREA_NAME AS "Market Area Name",
+    SUM(DDC.DELIV_QTY) AS "Delivered Qty.",
+    DDC.QTY_UNIT_MEAS_ID AS "Quantity UOM",
+    SUM(DDC.NET_WT) AS "Net Weight",
+    SUM(DDC.GROSS_WT) AS "Gross Weight",
+    DDC.WT_UNIT_MEAS_ID AS "Weight UOM",
+    SUM(DDC.VOL) AS "Volume",
+    DDC.VOL_UNIT_MEAS_ID AS "Volume UOM"
+
+FROM NA_BI_VWS.DELIVERY_DETAIL_CURR DDC
+
+    INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR MATL
+        ON MATL.MATL_ID = DDC.MATL_ID
+
+WHERE
+    DDC.DISTR_CHAN_CD <> '81'
+    AND EXTRACT(YEAR FROM DDC.ACTL_GOODS_ISS_DT) = 2012 
+    AND DDC.ACTL_GOODS_ISS_DT IS NOT NULL
+    AND DDC.DELIV_QTY > 0
+    AND DDC.MATL_ID IN (
+        SELECT
+            MATL_ID
+        
+        FROM GDYR_VWS.FACILITY_MATL
+        
+        WHERE
+            MRP_TYPE_ID IN ('X0', 'X1')
+            AND SPCL_PRCU_TYP_CD IN ('AC') -- N503 - Topkea as Source Facility
+            AND EXP_DT >= DATE '2012-01-01'
+        
+        GROUP BY
+            MATL_ID
+    )
+
+GROUP BY
+    DDC.ACTL_GOODS_ISS_DT,
+    DDC.DELIV_LINE_FACILITY_ID,
+    DDC.MATL_ID,
+    MATL.DESCR,
+    MATL.PBU_NBR,
+    MATL.PBU_NAME,
+    MATL.MKT_AREA_NBR,
+    MATL.MKT_AREA_NAME,
+    DDC.QTY_UNIT_MEAS_ID,
+    DDC.WT_UNIT_MEAS_ID,
+    DDC.VOL_UNIT_MEAS_ID
+
+ORDER BY
+    DDC.ACTL_GOODS_ISS_DT,
+    MATL.PBU_NBR,
+    MATL.MKT_AREA_NBR,
+    DDC.MATL_ID

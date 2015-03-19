@@ -1,0 +1,251 @@
+﻿SELECT
+    O.ORDER_FISCAL_YR
+    , O.ORDER_ID
+    , O.ORDER_LINE_NBR
+
+    , O.ORDER_CAT_ID
+    , O.ORDER_TYPE_ID
+    , O.PO_TYPE_ID
+
+    , O.MATL_ID
+    , O.DESCR
+    , O.PBU_NBR
+    , O.PBU_NAME
+    , O.MKT_AREA_NBR
+    , O.MKT_AREA_NAME
+
+    , O.SHIP_TO_CUST_ID
+    , O.CUST_NAME
+    , O.OWN_CUST_ID
+    , O.OWN_CUST_NAME
+
+    , O.ORDER_DT
+    , O.ORDER_LN_CRT_DT
+    , O.ITM_CRT_MONTH_DT
+
+    , O.FRST_MATL_AVL_DT
+    , O.FRST_PLN_GOODS_ISS_DT
+    , O.FRST_RDD
+    , O.FRDD_MONTH_DT
+
+    , O.FC_MATL_AVL_DT
+    , O.FC_PLN_GOODS_ISS_DT
+    , O.FRST_PROM_DELIV_DT
+    , O.FCDD_MONTH_DT
+
+    , O.FACILITY_ID
+
+    , O.QTY_UNIT_MEAS_ID
+    , O.ORDER_QTY
+    , O.CNFRM_QTY
+
+    , I.AVAIL_TO_PROM_QTY AS STK_LOC_ITM_CRT_ATP_QTY
+    , N.N602_LOCKBOURNE_ATP_QTY
+    , N.N607_MCDONOUGH_ATP_QTY
+    , N.N623_STOCKBRIDGE_ATP_QTY
+    , N.N636_YORK_ATP_QTY
+    , N.N637_DEKALB_ATP_QTY
+    , N.N639_TERRELL_ATP_QTY
+    , N.N6D3_SHELBY_ATP_QTY
+
+    , N.LC_NETWORK_ATP_QTY
+    , CASE
+        WHEN N.LC_NETWORK_ATP_QTY = 0
+            THEN 'Zero ATP'
+        WHEN N.LC_NETWORK_ATP_QTY < O.ORDER_QTY
+            THEN 'Network ATP < Order'
+        ELSE 'Network ATP >= Order'
+        END AS TEST_NETWORK_ALLOC
+
+    , CASE
+        WHEN N.N602_LOCKBOURNE_ATP_QTY = 0
+            THEN 'Zero ATP'
+        WHEN N.N602_LOCKBOURNE_ATP_QTY < O.ORDER_QTY
+            THEN 'ATP < Order'
+        ELSE 'ATP >= Order'
+        END AS TEST_LOCKBOURNE_ALLOC
+    , CASE
+        WHEN N.N607_MCDONOUGH_ATP_QTY = 0
+            THEN 'Zero ATP'
+        WHEN N.N607_MCDONOUGH_ATP_QTY < O.ORDER_QTY
+            THEN 'ATP < Order'
+        ELSE 'ATP >= Order'
+        END AS TEST_MCDONOUGH_ALLOC
+    , CASE
+        WHEN N.N623_STOCKBRIDGE_ATP_QTY = 0
+            THEN 'Zero ATP'
+        WHEN N.N623_STOCKBRIDGE_ATP_QTY < O.ORDER_QTY
+            THEN 'ATP < Order'
+        ELSE 'ATP >= Order'
+        END AS TEST_STOCKBRIDGE_ALLOC
+    , CASE
+        WHEN N.N636_YORK_ATP_QTY = 0
+            THEN 'Zero ATP'
+        WHEN N.N636_YORK_ATP_QTY < O.ORDER_QTY
+            THEN 'ATP < Order'
+        ELSE 'ATP >= Order'
+        END AS TEST_YORK_ALLOC
+    , CASE
+        WHEN N.N637_DEKALB_ATP_QTY = 0
+            THEN 'Zero ATP'
+        WHEN N.N637_DEKALB_ATP_QTY < O.ORDER_QTY
+            THEN 'ATP < Order'
+        ELSE 'ATP >= Order'
+        END AS TEST_DEKALB_ALLOC
+    , CASE
+        WHEN N.N639_TERRELL_ATP_QTY = 0
+            THEN 'Zero ATP'
+        WHEN N.N639_TERRELL_ATP_QTY < O.ORDER_QTY
+            THEN 'ATP < Order'
+        ELSE 'ATP >= Order'
+        END AS TEST_TERRELL_ALLOC
+    , CASE
+        WHEN N.N6D3_SHELBY_ATP_QTY = 0
+            THEN 'Zero ATP'
+        WHEN N.N6D3_SHELBY_ATP_QTY < O.ORDER_QTY
+            THEN 'ATP < Order'
+        ELSE 'ATP >= Order'
+        END AS TEST_SHELBY_ALLOC
+
+FROM (
+
+    SELECT
+        OD.ORDER_FISCAL_YR
+        , OD.ORDER_ID
+        , OD.ORDER_LINE_NBR
+
+        , OD.ORDER_CAT_ID
+        , OD.ORDER_TYPE_ID
+        , OD.PO_TYPE_ID
+
+        , OD.FACILITY_ID
+
+        , OD.MATL_ID
+        , M.DESCR
+        , M.PBU_NBR
+        , M.PBU_NAME
+        , M.MKT_AREA_NBR
+        , M.MKT_AREA_NAME
+
+        , OD.SHIP_TO_CUST_ID
+        , C.CUST_NAME
+        , C.OWN_CUST_ID
+        , C.OWN_CUST_NAME
+
+        , OD.ORDER_DT
+        , OD.ORDER_LN_CRT_DT
+        , OL_CAL.MONTH_DT AS ITM_CRT_MONTH_DT
+
+        , OD.FRST_MATL_AVL_DT
+        , OD.FRST_PLN_GOODS_ISS_DT
+        , OD.FRST_RDD
+        , FRDD_CAL.MONTH_DT AS FRDD_MONTH_DT
+
+        , OD.FC_MATL_AVL_DT
+        , OD.FC_PLN_GOODS_ISS_DT
+        , OD.FRST_PROM_DELIV_DT
+        , FCDD_CAL.MONTH_DT AS FCDD_MONTH_DT
+
+        , OD.QTY_UNIT_MEAS_ID
+        , SUM(OD.ORDER_QTY) AS ORDER_QTY
+        , SUM(OD.CNFRM_QTY) AS CNFRM_QTY
+
+    FROM NA_BI_VWS.ORDER_DETAIL OD
+
+        INNER JOIN GDYR_BI_VWS.GDYR_CAL OL_CAL
+            ON OL_CAL.DAY_DATE = OD.ORDER_LN_CRT_DT
+
+        INNER JOIN GDYR_BI_VWS.GDYR_CAL FRDD_CAL
+            ON FRDD_CAL.DAY_DATE = OD.FRST_RDD
+
+        LEFT OUTER JOIN GDYR_BI_VWS.GDYR_CAL FCDD_CAL
+            ON FCDD_CAL.DAY_DATE = OD.FRST_PROM_DELIV_DT
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR M
+            ON M.MATL_ID = OD.MATL_ID
+            AND M.PBU_NBR = '01'
+            AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+        INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR C
+            ON C.SHIP_TO_CUST_ID = OD.SHIP_TO_CUST_ID
+
+    WHERE
+        OD.ORDER_LN_CRT_DT BETWEEN OD.EFF_DT AND OD.EXP_DT
+        AND OD.ORDER_LN_CRT_DT BETWEEN CAST('2015-01-01' AS DATE) AND CURRENT_DATE-1
+        AND OD.ORDER_CAT_ID = 'C'
+        AND OD.PO_TYPE_ID <> 'RO'
+        AND OD.REJ_REAS_ID = ''
+        AND (
+                OD.FRST_PROM_DELIV_DT IS NULL
+                OR OD.FRST_RDD < OD.FRST_PROM_DELIV_DT
+            )
+
+    GROUP BY
+        OD.ORDER_FISCAL_YR
+        , OD.ORDER_ID
+        , OD.ORDER_LINE_NBR
+
+        , OD.ORDER_CAT_ID
+        , OD.ORDER_TYPE_ID
+        , OD.PO_TYPE_ID
+
+        , OD.FACILITY_ID
+
+        , OD.MATL_ID
+        , M.DESCR
+        , M.PBU_NBR
+        , M.PBU_NAME
+        , M.MKT_AREA_NBR
+        , M.MKT_AREA_NAME
+
+        , OD.SHIP_TO_CUST_ID
+        , C.CUST_NAME
+        , C.OWN_CUST_ID
+        , C.OWN_CUST_NAME
+
+        , OD.ORDER_DT
+        , OD.ORDER_LN_CRT_DT
+        , ITM_CRT_MONTH_DT
+
+        , OD.FRST_MATL_AVL_DT
+        , OD.FRST_PLN_GOODS_ISS_DT
+        , OD.FRST_RDD
+        , FRDD_MONTH_DT
+
+        , OD.FC_MATL_AVL_DT
+        , OD.FC_PLN_GOODS_ISS_DT
+        , OD.FRST_PROM_DELIV_DT
+        , FCDD_MONTH_DT
+
+        , OD.QTY_UNIT_MEAS_ID
+
+    ) O
+
+    INNER JOIN NA_BI_VWS.FACL_MATL_INV I
+        ON I.MATL_ID = O.MATL_ID
+        AND I.FACILITY_ID = O.FACILITY_ID
+        AND I.DAY_DT = O.ORDER_LN_CRT_DT
+
+    INNER JOIN (
+            SELECT
+                I.MATL_ID
+                , I.DAY_DT
+                , MAX(CASE WHEN I.FACILITY_ID = 'N602' THEN I.AVAIL_TO_PROM_QTY ELSE 0 END) AS N602_LOCKBOURNE_ATP_QTY
+                , MAX(CASE WHEN I.FACILITY_ID = 'N607' THEN I.AVAIL_TO_PROM_QTY ELSE 0 END) AS N607_MCDONOUGH_ATP_QTY
+                , MAX(CASE WHEN I.FACILITY_ID = 'N623' THEN I.AVAIL_TO_PROM_QTY ELSE 0 END) AS N623_STOCKBRIDGE_ATP_QTY
+                , MAX(CASE WHEN I.FACILITY_ID = 'N636' THEN I.AVAIL_TO_PROM_QTY ELSE 0 END) AS N636_YORK_ATP_QTY
+                , MAX(CASE WHEN I.FACILITY_ID = 'N637' THEN I.AVAIL_TO_PROM_QTY ELSE 0 END) AS N637_DEKALB_ATP_QTY
+                , MAX(CASE WHEN I.FACILITY_ID = 'N639' THEN I.AVAIL_TO_PROM_QTY ELSE 0 END) AS N639_TERRELL_ATP_QTY
+                , MAX(CASE WHEN I.FACILITY_ID = 'N6D3' THEN I.AVAIL_TO_PROM_QTY ELSE 0 END) AS N6D3_SHELBY_ATP_QTY
+                , SUM(I.AVAIL_TO_PROM_QTY) AS LC_NETWORK_ATP_QTY
+            FROM NA_BI_VWS.FACL_MATL_INV I
+            WHERE
+                -- MUST MAINTAIN THIS FILTER TO PROVIDE ACCURATE LC_NETWORK_ATP_QTY
+                I.FACILITY_ID IN ('N602', 'N607', 'N623', 'N636', 'N637', 'N639', 'N6D3')
+                AND I.DAY_DT BETWEEN CAST('2015-01-01' AS DATE) AND CURRENT_DATE
+            GROUP BY
+                I.MATL_ID
+                , I.DAY_DT
+            ) N
+        ON N.MATL_ID = O.MATL_ID
+        AND N.DAY_DT = O.ORDER_LN_CRT_DT

@@ -1,0 +1,75 @@
+SELECT
+    ODC.ORDER_ID AS "Order ID",
+    ODC.ORDER_LINE_NBR AS "Order Line Nbr",
+    
+    ODC.SHIP_TO_CUST_ID AS "Ship To Customer ID",
+    CUST.CUST_NAME AS "Ship To Customer Name",
+    CUST.OWN_CUST_ID AS "Common Owner ID",
+    CUST.OWN_CUST_NAME AS "Common Owner Name",
+    
+    ODC.SALES_ORG_CD AS "Sales Organization Code",
+    SO.SALES_ORG_NAME AS "Sales Organization Name",
+    ODC.CUST_GRP_ID AS "Customer Group ID",
+    CG.CUST_GRP_NAME AS "Customer Group Name",
+    
+    ODC.ORDER_DT AS "Order Create Date",
+    ODC.FRST_RDD AS FRDD,
+    ODC.REJ_REAS_ID AS "Reason for Rejection ID",
+    RRC.REJ_REAS_DESC AS "Reason for Rejection Desc"
+
+FROM NA_BI_VWS.ORDER_DETAIL_CURR ODC
+
+    INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR CUST
+        ON CUST.SHIP_TO_CUST_ID = ODC.SHIP_TO_CUST_ID
+        AND CUST.SHIP_OR_CNCL_CD IS NULL
+
+    LEFT OUTER JOIN GDYR_BI_VWS.NAT_ORDER_REJ_REAS_CURR RRC
+        ON RRC.REJ_REAS_ID = ODC.REJ_REAS_ID
+
+    LEFT OUTER JOIN GDYR_BI_VWS.NAT_CUST_GRP_EN_CURR CG
+        ON CG.CUST_GRP_ID = ODC.CUST_GRP_ID
+    
+    LEFT OUTER JOIN GDYR_BI_VWS.NAT_SALES_ORG_EN_CURR SO
+        ON SO.SALES_ORG_CD = ODC.SALES_ORG_CD
+
+WHERE
+    EXTRACT( YEAR FROM ODC.ORDER_DT ) = 2013
+    AND ODC.ORDER_TYPE_ID NOT IN ( 'ZLS', 'ZLZ' )
+    AND ODC.ORDER_CAT_ID = 'C'
+    AND ODC.PO_TYPE_ID <> 'RO'
+    AND ODC.REJ_REAS_ID IN ( 'Z2', 'Z3' )
+    -- AND ODC.CUST_GRP_ID <> '12'
+    AND ( CASE
+        WHEN ODC.REJ_REAS_ID = 'Z3' AND ODC.SALES_ORG_CD IN ( 'N302', 'N312', 'N322' )
+            THEN 0
+        ELSE 1
+    END ) = 1
+    AND CUST.OWN_CUST_ID NOT IN (
+            SELECT
+                OWN_CUST_ID
+            FROM GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR
+            WHERE
+                SHIP_OR_CNCL_CD = 'X'
+            GROUP BY
+                OWN_CUST_ID
+    )
+
+GROUP BY
+    ODC.ORDER_ID,
+    ODC.ORDER_LINE_NBR,
+    ODC.SHIP_TO_CUST_ID,
+    CUST.CUST_NAME,
+    CUST.OWN_CUST_ID,
+    CUST.OWN_CUST_NAME,
+    ODC.SALES_ORG_CD,
+    SO.SALES_ORG_NAME,
+    ODC.CUST_GRP_ID,
+    CG.CUST_GRP_NAME,
+    ODC.ORDER_DT,
+    ODC.FRST_RDD,
+    ODC.REJ_REAS_ID,
+    RRC.REJ_REAS_DESC
+
+ORDER BY
+    ODC.ORDER_ID,
+    ODC.ORDER_LINE_NBR

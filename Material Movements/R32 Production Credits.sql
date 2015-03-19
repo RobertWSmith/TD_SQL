@@ -1,0 +1,42 @@
+﻿SELECT
+    PC.MATL_ID
+    , M.MATL_TYPE_ID
+    , M.EXT_MATL_GRP_ID
+    , M.PBU_NBR
+    , M.PBU_NAME
+    , M.SUPER_BRAND_ID
+    , M.SUPER_BRAND_NAME
+    , M.ASSOC_BRAND_ID
+    , M.ASSOC_BRAND_NAME
+    , PC.BTCH_NO
+
+    , PC.FACILITY_ID
+    , F.FACILITY_NAME
+
+    , PC.PROD_DT
+    , CAL.MONTH_DT AS PROD_MONTH_DT
+
+    , PC.QTY_UOM
+    , PC.PROD_QTY
+
+FROM NA_BI_VWS.PROD_CREDIT_DY PC
+
+    INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+        ON CAL.DAY_DATE = PC.PROD_DT
+
+    INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR M
+        ON M.MATL_ID = PC.MATL_ID
+
+    INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+        ON F.FACILITY_ID = PC.FACILITY_ID
+        AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+        AND F.DISTR_CHAN_CD = '81'
+
+WHERE
+    M.MATL_TYPE_ID = 'PCTL'
+    AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+    AND M.PBU_NBR = CAST(#prompt('P_PBU', 'text', '''01''')# AS CHAR(2))
+    AND CAL.CAL_YR = CAST(#prompt('P_CalYear', 'integer', '2014')# AS INTEGER)
+    AND CAL.CAL_MTH BETWEEN CAST(#prompt('P_BeginCalMonth', 'integer', '1')# AS INTEGER)
+        AND CAST(#prompt('P_EndCalMonth', 'integer', '12')# AS INTEGER)

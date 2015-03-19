@@ -1,0 +1,97 @@
+﻿SELECT
+    ODC.ORDER_FISCAL_YR AS "ORder Fiscal Year"
+    , ODC.ORDER_ID AS "Order ID"
+    , ODC.ORDER_LINE_NBR AS "Order Line Nbr"
+
+    , ODC.ORDER_CAT_ID AS "Order Category"
+    , ODC.ORDER_TYPE_ID AS "Order Type"
+    , ODC.CUST_PO_NBR AS "Customer PO Nbr"
+    , ODC.PO_TYPE_ID AS "Customer PO Type"
+
+    , ODC.SHIP_TO_CUST_ID AS "Customer ID"
+    , C.CUST_NAME AS "Customer Name"
+    , C.OWN_CUST_ID AS "Common Owner ID"
+    , C.OWN_CUST_NAME AS "Common Owner Name"
+
+    , ODC.MATL_ID AS "Matl ID"
+    , M.MATL_NO_8 || ' - ' || M.DESCR AS "Matl Descr"
+    , M.PBU_NBR AS "PBU Nbr"
+    , M.PBU_NAME AS "PBU Name"
+    , M.MKT_AREA_NBR AS "Mkt Area Nbr"
+    , M.MKT_AREA_NAME AS "Mkt Area Name"
+    , M.MKT_CTGY_MKT_AREA_NBR AS "Category Cd"
+    , M.MKT_CTGY_MKT_AREA_NAME AS "Category Name"
+    , M.PROD_LINE_NBR AS "Prod Line Nbr"
+    , M.PROD_LINE_NAME AS "Prod Line Name"
+
+    , C.PRIM_SHIP_FACILITY_ID AS "Primary Ship Facility"
+    , ODC.FACILITY_ID AS "Ship Facility ID"
+    , F.FACILITY_NAME AS "Ship Facility Name"
+
+    , ODC.ORDER_DT AS "Order Create Date"
+    , ODC.ORDER_LN_CRT_DT AS "Item Create Date"
+    , ODC.FRST_MATL_AVL_DT AS "FRDD FMAD"
+    , ODC.FRST_PLN_GOODS_ISS_DT AS "FRDD FPGI"
+    , ODC.FRST_RDD AS "FRDD"
+
+    , ODC.QTY_UNIT_MEAS_ID AS "Qty Unit of Measure"
+    , MAX(ODC.ORDER_QTY) AS "Order Qty"
+
+FROM NA_BI_VWS.ORDER_DETAIL OD
+
+    INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR M
+        ON M.MATL_ID = OD.MATL_ID
+
+    INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR C
+        ON C.SHIP_TO_CUST_ID = OD.SHIP_TO_CUST_ID
+        AND C.OWN_CUST_ID = '00A0009994'
+
+    INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+        ON F.FACILITY_ID = OD.FACILITY_ID
+
+WHERE
+    OD.EXP_DT = CAST('5555-12-31' AS DATE)
+    AND OD.ORDER_CAT_ID = 'C'
+    AND OD.PO_TYPE_ID <> 'RO'
+    AND OD.REJ_REAS_ID = ''
+    and OD.ORDER_DT BETWEEN DATE '2014-01-01' AND DATE '2014-12-31'
+
+GROUP BY
+    ODC.ORDER_FISCAL_YR
+    , ODC.ORDER_ID
+    , ODC.ORDER_LINE_NBR
+
+    , ODC.ORDER_CAT_ID
+    , ODC.ORDER_TYPE_ID
+    , ODC.CUST_PO_NBR
+    , ODC.PO_TYPE_ID
+
+    , ODC.SHIP_TO_CUST_ID
+    , C.CUST_NAME
+    , C.OWN_CUST_ID
+    , C.OWN_CUST_NAME
+
+    , ODC.MATL_ID
+    , M.DESCR
+    , M.PBU_NBR
+    , M.PBU_NAME
+    , M.MKT_AREA_NBR
+    , M.MKT_AREA_NAME
+    , M.MKT_CTGY_MKT_AREA_NBR
+    , M.MKT_CTGY_MKT_AREA_NAME
+    , M.PROD_LINE_NBR
+    , M.PROD_LINE_NAME
+
+    , C.PRIM_SHIP_FACILITY_ID
+    , ODC.FACILITY_ID
+    , F.FACILITY_NAME
+
+    , ODC.ORDER_DT
+    , ODC.ORDER_LN_CRT_DT
+    , ODC.FRST_MATL_AVL_DT
+    , ODC.FRST_PLN_GOODS_ISS_DT
+    , ODC.FRST_RDD
+
+    , ODC.QTY_UNIT_MEAS_ID
+
+

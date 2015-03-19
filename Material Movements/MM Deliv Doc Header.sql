@@ -1,0 +1,34 @@
+﻿SELECT
+    FISCAL_YR
+    , DELIV_DOC_ID
+    , EFF_DT
+    , EXP_DT
+
+    , BILL_LADING_ID
+
+    , SRC_CRT_USR_ID
+    , SRC_CRT_TS
+    , ORIG_DOC_DT
+
+    , SD_DOC_CTGY_CD
+    , DELIV_TYP_CD
+
+    , SHIP_TO_CUST_ID
+    , VEND_ID
+
+    , FACILITY_ID
+
+    , DELIV_PRTY_CD
+    , SHIP_COND_CD
+    , SAP_TRANS_CD
+    , SPCL_PROC_CD
+    , MOT_SHIP_ID
+
+    , PLN_GOODS_MVT_DT
+    , ACTL_GOODS_MVT_DT
+    , DELIV_DT
+
+FROM GDYR_VWS.DELIV_DOC
+
+WHERE
+    ORIG_SYS_ID = 2

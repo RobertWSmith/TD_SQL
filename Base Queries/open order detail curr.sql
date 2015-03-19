@@ -1,0 +1,217 @@
+﻿SELECT
+    OOL.ORDER_FISCAL_YR
+    , OOL.ORDER_ID
+    , OOL.ORDER_LINE_NBR
+    , OOL.SCHED_LINE_NBR
+    
+    , CASE
+        WHEN OOL.CREDIT_HOLD_FLG = '' AND ODC.ORDER_DELIV_BLK_CD = '' AND ODC.DELIV_BLK_CD = ''
+            THEN 'No Holds'
+        ELSE 'Blocked'
+        END AS ORDER_BLOCKED_IND
+    
+    , ODC.SHIP_TO_CUST_ID
+    , CUST.CUST_NAME AS SHIP_TO_CUST_NAME
+    , CUST.TIRE_CUST_TYP_CD
+    , CUST.OWN_CUST_ID
+    , CUST.OWN_CUST_NAME
+    , CUST.SALES_ORG_CD
+    , CUST.SALES_ORG_NAME
+    , CUST.DISTR_CHAN_CD
+    , CUST.DISTR_CHAN_NAME
+    , CUST.CUST_GRP_ID
+    , CUST.CUST_GRP_NAME
+    
+    , ODC.MATL_ID
+    , ODC.BATCH_NBR
+    , MATL.TIERS
+    
+    , MATL.HVA_TXT
+    , MATL.HMC_TXT
+    , MATL.SAL_IND
+    , COALESCE(PAL.PAL_IND, '') AS PAL_IND
+    
+    , MATL.PBU_NBR
+    , MATL.PBU_NAME
+    , MATL.MKT_CTGY_MKT_AREA_NBR AS CTGY_CD
+    , MATL.MKT_CTGY_MKT_AREA_NAME AS CTGY_NAME
+    , MATL.MKT_CTGY_MKT_GRP_NBR AS SEGMENT_CD
+    , MATL.MKT_CTGY_MKT_GRP_NAME AS SEGMENT_NAME
+    , MATL.MKT_CTGY_PROD_GRP_NBR AS TIER_CD
+    , MATL.MKT_CTGY_PROD_GRP_NAME AS TIER_NAME
+    , MATL.MKT_CTGY_PROD_LINE_NBR AS SALES_PROD_LINE_CD
+    , MATL.MKT_CTGY_PROD_LINE_NAME AS SALES_PROD_LINE_NAME
+    
+    , CASE
+        WHEN ODC.FACILITY_ID IN ('N5US', 'N5CA')
+            THEN 'N5US / N5CA'
+        WHEN ODC.FACILITY_ID = CUST.PRIM_SHIP_FACILITY_ID
+            THEN 'Primary LC'
+        ELSE (CASE
+            WHEN ODC.FACILITY_ID LIKE 'N5%'
+                THEN 'Factory Direct'
+            ELSE 'Out of Area'
+            END)
+        END AS PRIM_SHIP_FACILITY_TEST
+    , CUST.PRIM_SHIP_FACILITY_ID
+    , ODC.FACILITY_ID
+    , FAC.FACILITY_NAME
+    , ODC.SHIP_PT_ID
+    , SP.FACILITY_NAME AS SHIP_PT_NAME
+    
+    , ODC.PO_TYPE_ID
+    , ODC.ORDER_TYPE_ID
+    , ODC.ITEM_CAT_ID
+    
+    , ODC.QTY_UNIT_MEAS_ID
+    , OOL.OPEN_CNFRM_QTY
+    , OOL.UNCNFRM_QTY
+    , OOL.BACK_ORDER_QTY
+    
+    , MATL.WT_MEAS_ID
+    , CAST(OOL.OPEN_CNFRM_QTY * MATL.UNIT_WT AS DECIMAL(15,3)) AS OPEN_CNFRM_WT
+    
+    , OOL.CREDIT_HOLD_FLG AS CREDIT_HOLD_IND
+    , ODC.ORDER_DELIV_BLK_CD
+    , CASE ODC.ORDER_DELIV_BLK_CD
+        WHEN '01' THEN 'Credit limit'
+        WHEN '02' THEN 'Hold for man rise'
+        WHEN '03' THEN 'Bottleneck mat'
+        WHEN '04' THEN 'Exp papers miss'
+        WHEN '05' THEN 'Chk free of ch.dlv'
+        WHEN '06' THEN 'No printing'
+        WHEN '07' THEN 'Quantity Change'
+        WHEN '08' THEN 'Kanban Delivery'
+        WHEN '09' THEN 'Deferred Order'
+        WHEN '10' THEN 'Chk Consign.Return'
+        WHEN '11' THEN 'Mgemt-Man D/N Rel'
+        WHEN '15' THEN 'Truckload Build'
+        WHEN '16' THEN 'Return'
+        WHEN 'YF' THEN 'Freight Policy Cust'
+        WHEN 'YO' THEN 'Truckload- New Order'
+        WHEN 'YR' THEN 'Truckload- Reset'
+        WHEN 'YT' THEN 'Truckload- Block'
+        ELSE ''
+        END AS ORDER_DELIV_BLK_DESC
+    , ODC.DELIV_BLK_CD AS SCHDLN_DELIV_BLK_CD
+    , CASE ODC.DELIV_BLK_CD
+        WHEN '01' THEN 'Credit limit'
+        WHEN '02' THEN 'Hold for man rise'
+        WHEN '03' THEN 'Bottleneck mat'
+        WHEN '04' THEN 'Exp papers miss'
+        WHEN '05' THEN 'Chk free of ch.dlv'
+        WHEN '06' THEN 'No printing'
+        WHEN '07' THEN 'Quantity Change'
+        WHEN '08' THEN 'Kanban Delivery'
+        WHEN '09' THEN 'Deferred Order'
+        WHEN '10' THEN 'Chk Consign.Return'
+        WHEN '11' THEN 'Mgemt-Man D/N Rel'
+        WHEN '15' THEN 'Truckload Build'
+        WHEN '16' THEN 'Return'
+        WHEN 'YF' THEN 'Freight Policy Cust'
+        WHEN 'YO' THEN 'Truckload- New Order'
+        WHEN 'YR' THEN 'Truckload- Reset'
+        WHEN 'YT' THEN 'Truckload- Block'
+        ELSE ''
+        END AS SCHDLN_DELIV_BLK_DESC
+    , ODC.ORDER_CREATOR
+    , ODC.SHIP_COND_ID
+    , ODC.ORDER_REAS_CD
+    , ODC.DELIV_PRTY_ID
+    , ODC.ROUTE_ID
+    , ODC.DELIV_GRP_CD
+    , ODC.SPCL_PROC_ID
+    , ODC.CUST_GRP2_CD
+
+    , CASE
+        WHEN OOL.OPEN_CNFRM_QTY > 0
+            THEN ODC.PLN_MATL_AVL_DT
+        END AS PLN_MATL_AVL_DT
+    , CASE
+        WHEN OOL.OPEN_CNFRM_QTY > 0
+            THEN ODC.PLN_GOODS_ISS_DT
+        END AS PLN_GOODS_ISS_DT
+    , CASE
+        WHEN OOL.OPEN_CNFRM_QTY > 0
+            THEN ODC.PLN_DELIV_DT
+        END AS PLN_DELIV_DT
+    
+    , ODC.ORDER_DT
+    , ODC.ORDER_LN_CRT_DT
+    
+    , FD.MAD_FIRST_DATE
+    , FD.PGI_FIRST_DATE
+    , FD.FIRST_DATE
+    
+    , ODC.CUST_RDD AS ORDD
+    , ODC.FRST_MATL_AVL_DT AS FRDD_FMAD
+    , ODC.FRST_PLN_GOODS_ISS_DT AS FRDD_FPGI
+    , ODC.FRST_RDD AS FRDD
+
+FROM NA_BI_VWS.OPEN_ORDER_SCHDLN_CURR OOL
+
+    INNER JOIN NA_BI_VWS.ORDER_DETAIL ODC
+        ON ODC.ORDER_FISCAL_YR = OOL.ORDER_FISCAL_YR
+        AND ODC.ORDER_ID = OOL.ORDER_ID
+        AND ODC.ORDER_LINE_NBR = OOL.ORDER_LINE_NBR
+        AND ODC.SCHED_LINE_NBR = OOL.SCHED_LINE_NBR
+        AND ODC.ORDER_FISCAL_YR >= CAST(EXTRACT(YEAR FROM CURRENT_DATE-1)-2 AS CHAR(4))
+        AND ODC.EXP_DT = DATE '5555-12-31'
+        AND ODC.ORDER_CAT_ID = 'C'
+        AND ODC.RO_PO_TYPE_IND = 'N'
+        AND ODC.REJ_REAS_ID = ''
+
+    INNER JOIN (
+            SELECT
+                OD.ORDER_FISCAL_YR
+                , OD.ORDER_ID
+                , OD.ORDER_LINE_NBR
+                , OD.PLN_MATL_AVAIL_DT AS MAD_FIRST_DATE
+                , OD.PLN_GOODS_ISS_DT AS PGI_FIRST_DATE
+                , OD.PLN_DELIV_DT AS FIRST_DATE
+            FROM NA_BI_VWS.ORDER_DETAIL OD
+            WHERE
+                ODC.SCHED_LINE_NBR = 1
+                AND ODC.ORDER_FISCAL_YR >= CAST(EXTRACT(YEAR FROM CURRENT_DATE-1)-2 AS CHAR(4))
+                AND ODC.EXP_DT = DATE '5555-12-31'
+                AND ODC.ORDER_CAT_ID = 'C'
+                AND ODC.RO_PO_TYPE_IND = 'N'
+                AND ODC.REJ_REAS_ID = ''
+            )  FD
+        ON FD.ORDER_FISCAL_YR = OOL.ORDER_FISCAL_YR
+        AND FD.ORDER_ID = OOL.ORDER_ID
+        AND FD.ORDER_LINE_NBR = OOL.ORDER_LINE_NBR
+
+    INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR CUST
+        ON CUST.SHIP_TO_CUST_ID = ODC.SHIP_TO_CUST_ID
+
+    INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR MATL
+        ON MATL.MATL_ID = ODC.MATL_ID
+        AND MATL.PBU_NBR IN ('01', '03')
+        AND MATL.MKT_CTGY_MKT_AREA_NBR IN ('05', '31', '32', '33', '35', '36')
+        AND MATL.SUPER_BRAND_ID IN ('01', '02', '03', '05')
+        AND MATL.MATL_TYPE_ID IN ('ACCT', 'PCTL')
+
+    LEFT OUTER JOIN GDYR_BI_VWS.NAT_MATL_PAL_CURR PAL
+        ON PAL.MATL_ID = MATL.MATL_ID
+
+    INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR FAC
+        ON FAC.FACILITY_ID = ODC.FACILITY_ID
+        AND FAC.DISTR_CHAN_CD = '81'
+        AND FAC.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+
+    INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR SP
+        ON SP.FACILITY_ID = ODC.SHIP_PT_ID
+        AND SP.DISTR_CHAN_CD = '81'
+        AND SP.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+
+WHERE
+    (OOL.OPEN_CNFRM_QTY > 0 AND ODC.PLN_GOODS_ISS_DT >= DATE '2014-10-01')
+    OR OOL.UNCNFRM_QTY > 0
+    OR OOL.BACK_ORDER_QTY > 0
+
+ORDER BY
+    OOL.ORDER_FISCAL_YR
+    , OOL.ORDER_ID
+    , OOL.ORDER_LINE_NBR
+    , OOL.SCHED_LINE_NBR

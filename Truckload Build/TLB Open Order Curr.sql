@@ -1,0 +1,110 @@
+﻿SELECT
+    ODC.ORDER_FISCAL_YR  
+    , ODC.ORDER_ID   
+    , ODC.ORDER_LINE_NBR  
+    , ODC.SCHED_LINE_NBR  
+    , ODC.CO_CD    
+    , ODC.DIV_CD   
+    , ODC.SALES_ORG_CD   
+    , ODC.DISTR_CHAN_CD   
+    , ODC.CUST_GRP_ID   
+    , ODC.SOLD_TO_CUST_ID  
+    , ODC.SHIP_TO_CUST_ID  
+    , ODC.BILL_TO_CUST_ID  
+    , ODC.PAYOR_CUST_ID   
+    , ODC.ORDER_DT   
+    , ODC.ORDER_CAT_ID   
+    , ODC.ORDER_TYPE_ID   
+    , ODC.SCHD_LN_CTGY_CD  
+    , ODC.BUS_INQR_IND   
+    , ODC.WAIT_LIST_CD   
+    , ODC.CANCEL_IND   
+    , ODC.RETURN_IND   
+    , ODC.PO_TYPE_ID   
+    , ODC.RO_PO_TYPE_IND  
+    , ODC.DELIV_BLK_IND   
+    , ODC.DELIV_BLK_CD   
+    , ODC.CUST_PO_NBR   
+    , ODC.FACILITY_ID   
+    , ODC.SHIP_PT_ID   
+    , ODC.ITEM_CAT_ID   
+    , ODC.MATL_ID   
+    , ODC.CUST_PART_NBR   
+    , ODC.PRICE    
+    , ODC.CRNCY_ID   
+    , ODC.PRC_DT   
+    , ODC.QTY_UNIT_MEAS_ID  
+    , ODC.SRC_ORD_QTY   
+    , ODC.ORDER_QTY   
+    , ODC.BUS_INQR_QTY   
+    , ODC.CNFRM_QTY   
+    , ODC.SLS_QTY_UNIT_MEAS_ID  
+    , ODC.SLS_ORDER_QTY   
+    , ODC.RPT_ORDER_QTY   
+    , ODC.RPT_CNFRM_QTY   
+    , ODC.RPT_QTY_UNIT_MEAS_ID  
+    , ODC.NET_WT   
+    , ODC.GROSS_WT   
+    , ODC.WT_UNITS_MEAS_ID  
+    , ODC.VOL    
+    , ODC.VOL_UNIT_MEAS_ID  
+    , ODC.ORDER_CREATOR   
+    , ODC.SHIP_COND_ID   
+    , ODC.PRTL_DLVY_CD   
+    , ODC.REJ_REAS_ID   
+    , ODC.REJ_REAS_DESC   
+    , ODC.ORDER_REAS_CD   
+    , ODC.BATCH_NBR   
+    , ODC.DELIV_PRTY_ID   
+    , ODC.HANDSHAKE_TYP_CD  
+    , FD.PLN_DELIV_DT AS FIRST_DATE
+    , ODC.CUST_RDD   
+    , ODC.FRST_RDD   
+    , ODC.FRST_MATL_AVL_DT  
+    , ODC.FRST_PLN_GOODS_ISS_DT  
+    , ODC.FRST_PROM_DELIV_DT  
+    , ODC.PLN_TRANSP_PLN_DT  
+    , ODC.PLN_MATL_AVL_DT  
+    , ODC.PLN_LOAD_DT   
+    , ODC.PLN_GOODS_ISS_DT  
+    , ODC.PLN_DELIV_DT   
+    , ODC.PLN_ARRIVE_TM   
+    , ODC.FNL_ACCEPT_DT   
+    , ODC.ROUTE_ID   
+    , ODC.DELIV_GRP_CD   
+    , ODC.SPCL_PROC_ID   
+    , ODC.PROD_ALLCT_DETERM_PROC_ID 
+    , ODC.RPT_FRT_PLCY_CD  
+    , ODC.CUST_GRP2_CD   
+    , ODC.FC_MATL_AVL_DT  
+    , ODC.FC_PLN_GOODS_ISS_DT  
+    , ODC.CANCEL_DT   
+    , OOL.OPEN_CNFRM_QTY                
+    , OOL.UNCNFRM_QTY                   
+    , OOL.BACK_ORDER_QTY                
+    , OOL.DEFER_QTY                     
+    , OOL.IN_PROC_QTY                   
+    , OOL.WAIT_LIST_QTY                 
+    , OOL.OTHR_ORDER_QTY                
+    , OOL.CREDIT_HOLD_FLG               
+
+FROM NA_BI_VWS.ORDER_DETAIL_CURR ODC
+
+    INNER JOIN NA_BI_VWS.ORDER_DETAIL_CURR FD
+        ON FD.ORDER_FISCAL_YR = ODC.ORDER_FISCAL_YR
+        AND FD.ORDER_ID = ODC.ORDER_ID
+        AND FD.ORDER_LINE_NBR = ODC.ORDER_LINE_NBR
+        AND FD.SCHED_LINE_NBR = 1
+
+    INNER JOIN NA_BI_VWS.OPEN_ORDER_SCHDLN_CURR OOL
+        ON OOL.ORDER_FISCAL_YR = ODC.ORDER_FISCAL_YR
+        AND OOL.ORDER_ID = ODC.ORDER_ID
+        AND OOL.ORDER_LINE_NBR = ODC.ORDER_LINE_NBR
+        AND OOL.SCHED_LINE_NBR = ODC.SCHED_LINE_NBR
+
+WHERE
+    ODC.ORDER_CAT_ID = 'C'
+    AND ODC.PO_TYPE_ID <> 'RO'
+    AND ODC.ORDER_DT >= DATE '2014-01-01'
+    AND ODC.CUST_GRP2_CD = 'TLB'
+    

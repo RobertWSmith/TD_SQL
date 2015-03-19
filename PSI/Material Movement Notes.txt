@@ -1,0 +1,22 @@
+601 - Shipments from facility for 
+
+
+
+Total Inventory:
+601 - CUSTOMER SHIPMENTS BY AGID
+	-> Negative Number
+101 - STOCK TRANSFER RELATED TO ASN POST DATE // IGNORES PO QUANTITY
+	-> 101'S ADD INVENTORY TO LOCATION DUE TO SHIPMENT ARRIVAL
+941 - INVENTORY DESTRUCTION - SCRAP
+	-> Negative Number
+
+Today's Total Inventory = Prior Date Total Inventory + GR Stock In Transit (101) + GD goods issue:delvy (601) + Whse Rep Scrap Tires (941)
+
+In Transit Inventory:	
+641 - OUTBOUND STO'S BY DELIV LINE CREATE DATE
+	-> 641'S ADD INVENTORY TO LOCATION DUE TO SHIPMENT GOODS ISSUE
+601 - IN TRANSITS GOODS ISSUED ON DATE
+
+Today's In Transit Inventory = Prior Day In Transit Inventory + TF to stck in trans. (641) + (-1 * GR stock in transit (601) )
+
+

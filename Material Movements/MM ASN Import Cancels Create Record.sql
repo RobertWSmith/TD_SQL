@@ -1,0 +1,89 @@
+﻿SELECT
+    CAST('MM' AS VARCHAR(3)) AS RPT_TYPE
+    , CAST('SN' AS VARCHAR(25)) AS DOC_TYPE
+    , DDI.FISCAL_YR
+    , DDI.DELIV_DOC_ID
+    , DDI.DELIV_DOC_ITM_ID
+
+    , DD.ORIG_DOC_DT
+    , CAL.MONTH_DT AS ORIG_DOC_MTH_DT
+    , DDI.MATL_ID
+    , DDI.FACILITY_ID
+
+    , DD.SHIP_TO_CUST_ID
+    , DD.VEND_ID
+
+    , DDI.BASE_UOM_CD
+    , DDI.ACTL_DELIV_QTY
+
+FROM GDYR_VWS.DELIV_DOC_ITM DDI
+
+    INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+        ON M.MATL_ID = DDI.MATL_ID
+        AND M.MATL_TYPE_ID = 'PCTL'
+        AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+    INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+        ON F.FACILITY_ID = DDI.FACILITY_ID
+        AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+        AND F.DISTR_CHAN_CD = '81'
+
+    INNER JOIN (
+
+        SELECT
+            CDI.DOC_ID
+            , CDI.DOC_ITM_ID
+            , CDI.SRC_CRT_DT
+            , CAST(CDI.SRC_CRT_DT-1 AS DATE) AS EXP_REC_DT
+
+        FROM GDYR_BI_VWS.CHG_DOC_ITM CDI
+
+        WHERE
+            CDI.ORIG_SYS_ID = 2
+            AND CDI.OBJ_CLS_CD = 'LIEFERUNG'
+            AND CDI.SAP_TBL_NM = 'LIPS'
+            AND CDI.SAP_COL_NM  = 'KEY'
+            AND CDI.CHG_TYP_CD = 'D'
+            AND CDI.SRC_CRT_DT >= CAST(CAST(#prompt('P_CalYear', 'integer', '2014')# AS CHAR(4)) || '-' || 
+                CAST(CAST(#prompt('P_BeginCalMonth', 'integer', '1')# AS FORMAT'-9(2)') AS CHAR(2)) || '-01' AS DATE)
+
+            ) CHG
+        ON CHG.DOC_ID = DDI.DELIV_DOC_ID
+        AND CHG.DOC_ITM_ID = DDI.DELIV_DOC_ITM_ID
+        AND CHG.EXP_REC_DT BETWEEN DDI.EFF_DT AND DDI.EXP_DT
+
+    INNER JOIN GDYR_VWS.PRCH_DOC_ITM PDi
+        ON PDI.PRCH_DOC_ID = DDI.SLS_DOC_ID
+        AND PDI.PRCH_DOC_ITM_ID = DDI.SLS_DOC_ITM_ID
+        AND PDI.ORIG_SYS_ID = 2
+        AND PDI.EXP_DT = CAST('5555-12-31' AS DATE)
+        AND PDI.CO_CD IN ('N101', 'N102', 'N266')
+        AND PDI.CNFRM_CNTRL_ID IN ('Z004', 'Z005')
+
+    INNER JOIN GDYR_VWS.PRCH_DOC PD
+        ON PD.PRCH_DOC_ID = PDI.PRCH_DOC_ID
+        AND PD.ORIG_SYS_ID = 2
+        AND PD.EXP_DT = CAST('5555-12-31' AS DATE)
+        AND PD.CO_CD IN ('N101', 'N102', 'N266')
+        AND PD.PRCH_CTGY_CD = 'F'
+        AND PD.PRCH_TYPE_CD = 'NB'
+
+    INNER JOIN GDYR_VWS.DELIV_DOC DD
+        ON DD.FISCAL_YR = DDI.FISCAL_YR
+        AND DD.DELIV_DOC_ID = DDI.DELIV_DOC_ID
+        AND CHG.EXP_REC_DT BETWEEN DD.EFF_DT AND DD.EXP_DT
+        AND DD.ORIG_SYS_ID = 2
+        AND DD.SD_DOC_CTGY_CD = '7'
+        AND DD.DELIV_TYP_CD = 'EL'
+
+    INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+        ON CAL.DAY_DATE = DD.ORIG_DOC_DT
+
+WHERE
+    DDI.ORIG_SYS_ID = 2
+    AND DDI.SD_DOC_CTGY_CD = 'V'
+
+    AND M.PBU_NBR = CAST(#prompt('P_PBU', 'text', '''01''')# AS CHAR(2))
+    AND CAL.CAL_YR = CAST(#prompt('P_CalYear', 'integer', '2014')# AS INTEGER)
+    AND CAL.CAL_MTH BETWEEN CAST(#prompt('P_BeginCalMonth', 'integer', '1')# AS INTEGER)
+        AND CAST(#prompt('P_EndCalMonth', 'integer', '12')# AS INTEGER)

@@ -1,0 +1,34 @@
+﻿SELECT
+    PRCH_DOC_ID
+    , PRCH_DOC_ITM_ID
+
+    , CO_CD
+
+    , DEL_IND
+    , CHANGE_DT
+    , GR_IND
+    , PRICE_DT
+
+    , CUST_ID
+
+    , PRCH_CTGY_CD
+
+    , MATL_ID
+    , MATL_TYPE_ID
+    , MATL_GRP_CD
+
+    , FACILITY_ID
+    , STOR_LOC_ID
+
+    , RETURN_IND
+    , ORDER_REAS_CD
+    , DELIV_TYPE_ID
+
+    , PO_UOM_CD
+    , PO_QTY
+
+FROM GDYR_VWS.PRCH_DOC_ITM
+
+WHERE
+    ORIG_SYS_ID = 2
+    AND EXP_DT = CAST('5555-12-31' AS DATE)

@@ -1,0 +1,12 @@
+﻿SELECT
+    PBU_NBR
+    , PBU_NAME
+    , PBU_NBR || ' - ' || PBU_NAME AS PBU
+
+FROM GDYR_BI_VWS.NAT_PBU_NAME_CURR
+
+WHERE
+    PBU_NBR IN ('01', '03', '04', '05', '07', '08', '09')
+    
+ORDER BY
+    PBU_NBR

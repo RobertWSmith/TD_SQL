@@ -1,0 +1,233 @@
+﻿SELECT
+    Q.ITM_CRT_MTH_DT
+    , Q.MATL_ID
+    , Q.DESCR
+    , Q.PBU_NBR
+    , Q.PBU_NAME
+    , Q.MKT_CTGY_MKT_AREA_NBR
+    , Q.MKT_CTGY_MKT_AREA_NAME
+    , Q.MKT_CTGY_PROD_LINE_NBR
+    , Q.MKT_CTGY_PROD_LINE_NAME
+    , Q.FACILITY_ID
+    , Q.FACILITY_NAME
+    , Q.OWN_CUST_ID
+    , Q.OWN_CUST_NAME
+    , Q.QTY_UNIT_MEAS_ID
+    , SUM(Q.ORDER_QTY) AS RAW_ORDER_QTY
+    , SUM(Q.DELIV_QTY) AS DELIV_QTY
+    , SUM(Q.NET_ORDER_QTY) AS NET_ORDER_QTY
+    , SUM(Q.FRDD_EQ_FCDD_NET_ORDER_QTY) AS FRDD_EQ_FCDD_NET_ORDER_QTY
+    , AVERAGE(Q.OL_CRT_TO_FRDD_DAYS) AS AVG_OL_CRT_TO_FRDD_DAYS
+
+FROM (
+
+SELECT
+    OD.ORDER_FISCAL_YR
+    , OD.ORDER_ID
+    , OD.ORDER_LINE_NBR
+
+    , OL_CAL.MONTH_DT AS ITM_CRT_MTH_DT
+    , OD.MATL_ID
+    , M.DESCR
+    , M.PBU_NBR
+    , M.PBU_NAME
+    , M.MKT_CTGY_MKT_AREA_NBR
+    , M.MKT_CTGY_MKT_AREA_NAME
+    , M.MKT_CTGY_PROD_LINE_NBR
+    , M.MKT_CTGY_PROD_LINE_NAME
+
+    , OD.FACILITY_ID
+    , F.FACILITY_NAME
+
+    , C.OWN_CUST_ID
+    , C.OWN_CUST_NAME
+
+    , OD.QTY_UNIT_MEAS_ID
+    , OD.ORDER_QTY
+    , ZEROIFNULL(DLV.ITM_QTY) AS DELIV_QTY
+    , CASE
+        WHEN OD.REJ_REAS_ID <> ''
+            THEN OD.ORDER_QTY - DELIV_QTY
+        WHEN DELIV_QTY > OD.ORDER_QTY
+            THEN DELIV_QTY
+        ELSE OD.ORDER_QTY
+        END AS NET_ORDER_QTY
+    , CASE
+        WHEN OD.FRST_RDD = OD.FRST_PROM_DELIV_DT
+            THEN NET_ORDER_QTY
+        ELSE 0
+        END AS FRDD_EQ_FCDD_NET_ORDER_QTY
+    , CAST(OD.FRST_RDD - OD.ORDER_LN_CRT_DT AS INTEGER) AS OL_CRT_TO_FRDD_DAYS
+
+FROM NA_BI_VWS.ORDER_DETAIL OD
+
+    INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR M    
+        ON M.MATL_ID = OD.MATL_ID
+        AND M.MATL_TYPE_ID = 'PCTL'
+        AND M.EXT_MATL_GRP_ID = 'TIRE'
+        AND M.PBU_NBR = '01'
+
+    INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR C
+        ON C.SHIP_TO_CUST_ID = OD.SHIP_TO_CUST_ID
+
+    INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+        ON F.FACILITY_ID = OD.FACILITY_ID
+        AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+        AND F.DISTR_CHAN_CD = '81'
+        AND F.FACILITY_ID NOT IN ('N5US', 'N5CA')
+
+    INNER JOIN GDYR_BI_VWS.GDYR_CAL OL_CAL
+        ON OL_CAL.DAY_DATE = OD.ORDER_LN_CRT_DT
+
+    INNER JOIN GDYR_BI_VWS.GDYR_CAL RDD_CAL
+        ON RDD_CAL.DAY_DATE = OD.FRST_PLN_GOODS_ISS_DT
+
+    LEFT OUTER JOIN (
+            SELECT
+                DD.ORDER_FISCAL_YR
+                , DD.ORDER_ID
+                , DD.ORDER_LINE_NBR
+                , SUM(DD.DELIV_QTY) AS ITM_QTY
+
+            FROM NA_BI_VWS.DELIV_LN_SMRY DD
+
+            WHERE
+                DD.DELIV_LINE_CREA_DT >= CAST('2014-01-01' AS DATE)
+                AND DD.DELIV_CAT_ID = 'J'
+                AND DD.SD_DOC_CTGY_CD = 'C'
+
+            GROUP BY
+                DD.ORDER_FISCAL_YR
+                , DD.ORDER_ID
+                , DD.ORDER_LINE_NBR
+
+            ) DLV
+        ON DLV.ORDER_FISCAL_YR = OD.ORDER_FISCAL_YR
+        AND DLV.ORDER_ID = OD.ORDER_ID
+        AND DLV.ORDER_LINE_NBR = OD.ORDER_LINE_NBR
+
+WHERE
+    OD.EXP_DT = CAST('5555-12-31' AS DATE)
+    AND OD.ORDER_CAT_ID = 'C'
+    AND OD.PO_TYPE_ID <> 'RO'
+    AND OD.SCHED_LINE_NBR = 1
+    AND OD.ORDER_LN_CRT_DT BETWEEN CAST('2014-01-01' AS DATE) AND CURRENT_DATE-1
+    AND OL_CAL.MONTH_DT < RDD_CAL.MONTH_DT
+
+    AND NOT (
+        OL_CAL.DAY_OF_MONTH > (OL_CAL.TTL_DAYS_IN_MNTH-8)
+        AND OL_CAL.MONTH_DT < RDD_CAL.MONTH_DT
+        )
+
+    AND (C.SALES_ORG_CD, C.DISTR_CHAN_CD, C.CUST_GRP_ID, M.PBU_NBR) IN (
+        SELECT
+            SALES_ORG_CD
+            , DISTR_CHAN_CD
+            , CUST_GRP_ID
+            , PBU_NBR
+        FROM NA_BI_VWS.SCM_CUST_GRP_CURR
+        WHERE
+            TIRE_CUST_TYP_CD IS NULL
+            OR TIRE_CUST_TYP_CD IN ('REPL', 'NA')
+    )
+
+    AND (OL_CAL.MONTH_DT, OD.MATL_ID, OD.FACILITY_ID) IN (
+
+        SELECT
+            Q.ITM_CRT_MTH_DT
+            , Q.MATL_ID
+            , Q.FACILITY_ID
+
+        FROM (
+
+        SELECT
+            OL_CAL.MONTH_DT AS ITM_CRT_MTH_DT
+            , M.MATL_ID
+            , F.FACILITY_ID
+            , SUM(DDC.DELIV_QTY) AS SMRY_DELIV_QTY
+
+        FROM NA_BI_VWS.DELIVERY_DETAIL_CURR DDC
+
+            INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+                ON M.MATL_ID = DDC.MATL_ID
+                AND M.MATL_TYPE_ID = 'PCTL'
+                AND M.EXT_MATL_GRP_ID = 'TIRE'
+                AND M.PBU_NBR = '01'
+
+            INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_CURR C
+                ON C.SHIP_TO_CUST_ID = DDC.SHIP_TO_CUST_ID
+
+            INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+                ON F.FACILITY_ID = DDC.DELIV_LINE_FACILITY_ID
+                AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+                AND F.DISTR_CHAN_CD = '81'
+                AND F.FACILITY_ID NOT IN ('N5US', 'N5CA')
+
+            INNER JOIN NA_BI_VWS.ORDER_DETAIL OD
+                ON OD.ORDER_FISCAL_YR = DDC.ORDER_FISCAL_YR
+                AND OD.ORDER_ID = DDC.ORDER_ID
+                AND OD.ORDER_LINE_NBR = DDC.ORDER_LINE_NBR
+                AND OD.SCHED_LINE_NBR = 1
+                AND OD.EXP_DT = CAST('5555-12-31' AS DATE)
+                AND OD.ORDER_CAT_ID = 'C'
+                AND OD.RO_PO_TYPE_IND = 'N'
+                AND OD.ORDER_LN_CRT_DT >= CAST('2014-01-01' AS DATE)
+
+            INNER JOIN GDYR_BI_VWS.GDYR_CAL OL_CAL
+                ON OL_CAL.DAY_DATE = OD.ORDER_LN_CRT_DT
+
+            INNER JOIN GDYR_BI_VWS.GDYR_CAL RDD_CAL
+                ON RDD_CAL.DAY_DATE = OD.PLN_GOODS_ISS_DT
+
+            INNER JOIN GDYR_BI_VWS.GDYR_CAL AGID_CAL
+                ON AGID_CAL.DAY_DATE = DDC.ACTL_GOODS_ISS_DT
+
+        WHERE
+            DDC.DELIV_CAT_ID = 'J'
+            AND DDC.GOODS_ISS_IND = 'Y'
+            AND DDC.ACTL_GOODS_ISS_DT IS NOT NULL
+            AND DDC.DELIV_LINE_CREA_DT >= CAST('2014-01-01' AS DATE)
+            AND OL_CAL.MONTH_DT = RDD_CAL.MONTH_DT
+            AND RDD_CAL.MONTH_DT < AGID_CAL.MONTH_DT
+            
+            AND (C.SALES_ORG_CD, C.DISTR_CHAN_CD, C.CUST_GRP_ID, M.PBU_NBR) IN (
+                SELECT
+                    SALES_ORG_CD
+                    , DISTR_CHAN_CD
+                    , CUST_GRP_ID
+                    , PBU_NBR
+                FROM NA_BI_VWS.SCM_CUST_GRP_CURR
+                WHERE
+                    TIRE_CUST_TYP_CD IS NULL
+                    OR TIRE_CUST_TYP_CD IN ('REPL', 'NA')
+            )
+
+        GROUP BY
+            ITM_CRT_MTH_DT
+            , M.MATL_ID
+            , F.FACILITY_ID
+
+        HAVING
+            SMRY_DELIV_QTY > 0
+
+            ) Q
+   
+    )
+
+    ) Q
+
+GROUP BY
+    Q.ITM_CRT_MTH_DT
+    , Q.MATL_ID
+    , Q.DESCR
+    , Q.PBU_NBR
+    , Q.PBU_NAME
+    , Q.MKT_CTGY_MKT_AREA_NBR
+    , Q.MKT_CTGY_MKT_AREA_NAME
+    , Q.MKT_CTGY_PROD_LINE_NBR
+    , Q.MKT_CTGY_PROD_LINE_NAME
+    , Q.FACILITY_ID
+    , Q.FACILITY_NAME
+    , Q.OWN_CUST_ID
+    , Q.OWN_CUST_NAME
+    , Q.QTY_UNIT_MEAS_ID

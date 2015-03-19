@@ -1,0 +1,340 @@
+SELECT
+    SC.ORDER_ID,
+    SC.ORDER_LINE_NBR,
+    SC.RESCHD_DT,
+    SC.SHIP_TO_CUST_ID,
+    SC.CMN_OWN_CUST_ID,
+    SC.MATL_ID,
+    SC.PBU_NBR,
+    SC.RESCHD_DT,
+    SC.PRIOR_DY_RESCHD_DT,
+    SC.SCHD_LINE_COUNT,
+    SC.MAX_PLN_MAD,
+    SC.MAX_PLN_DELIV_DT,
+    SC.MAX_RESCHD_MAD,
+    SC.MAX_RESCHD_DELIV_DT,
+    SC.MIN_PLN_DELIV_DT,
+    SC.MIN_RESCHD_DELIV_DT,
+    SC.SUM_CNFRM_QTY,
+    SC.SUM_RESCHD_CNFRM_QTY,
+    SC.SCHD_LN_DELIV_BLOCK,
+    SC.HEADER_DELIV_BLOCK,
+    SC.DELIV_BLOCK,
+    SC.POLICY,
+    SC.MAD_IN_PAST_MAN,
+    SC.MAD_IN_PAST_SUPPLY,
+    SC.MAX_DATE_QTY_DELETED,
+    SC.MAX_DATE_QTY_ADDED,
+    SC.SUM_QTY_DECREASED,
+    SC.SUM_QTY_INCREASED,
+    SC.MAX_DATE_QTY_DECREASED,
+    SC.MAX_DATE_QTY_INCREASED,
+    SC.DATE_IMPROVED_QTY,
+    SC.DATE_PUSH_QTY,
+    SC.QUANTITY_ADDED,
+    SC.QUANTITY_DELETED,
+    
+    CASE
+        WHEN OO.OPEN_ORDER_STATUS_CD = 'B'
+            THEN OO.OPEN_ORDER_QTY
+        ELSE 0
+    END AS BACK_ORDER_QTY,
+    
+    CASE
+        WHEN OO.OPEN_ORDER_STATUS_CD = 'C'
+            THEN OO.OPEN_ORDER_QTY
+        ELSE 0
+    END AS CNFRM_QTY,
+    
+    CASE
+        WHEN OO.OPEN_ORDER_STATUS_CD = 'U'
+            THEN OO.OPEN_ORDER_QTY
+        ELSE 0
+    END AS UNCNFRM_QTY,
+    
+    CASE
+        WHEN OO.OPEN_ORDER_STATUS_CD NOT IN ( 'B', 'C', 'U' )
+            THEN OO.OPEN_ORDER_QTY
+        ELSE 0
+    END AS OTHER_QTY,
+    
+    SC.CONFIRM_DATE_IMPR_QTY,
+    SC.CONFIRM_DATE_PUSH_QTY,
+    
+    -- CNFRM_INCR_QTY BEGIN
+    CASE
+        WHEN SC.SUM_CNFRM_QTY > SC.SUM_RESCHD_CNFRM_QTY
+            THEN ( CASE
+                WHEN SC.SUM_CNFRM_QTY > ( OO.OPEN_ORDER_QTY )
+                    THEN 0
+                ELSE SC.SUM_CNFRM_QTY - SC.SUM_RESCHD_CNFRM_QTY
+            END )
+        ELSE 0
+    END AS CNFRM_DECR_QTY,
+   CASE
+        WHEN SC.SUM_CNFRM_QTY < SC.SUM_RESCHD_CNFRM_QTY
+            THEN SC.SUM_RESCHD_CNFRM_QTY - SC.SUM_CNFRM_QTY
+        ELSE 0
+    END AS CNFRM_INCR_QTY
+
+FROM (
+
+SELECT
+    RS.ORDER_ID,
+    RS.ORDER_LINE_NBR, 
+    RS.RESCHD_DT,
+    MAX( RS.SHIP_TO_CUST_ID ) AS SHIP_TO_CUST_ID,
+    RS.CMN_OWN_CUST_ID,
+    RS.MATL_ID,
+    RS.PBU_NBR,
+    RS.PRIOR_DY_RESCHD_DT,
+    
+    COUNT( DISTINCT RS.ORDER_ID || RS.ORDER_LINE_NBR || RS.SCHED_LINE_NBR ) AS SCHD_LINE_COUNT,
+    MAX( RS.PLN_MATL_AVAIL_DT ) AS MAX_PLN_MAD,
+    MAX( RS.PLN_DELIV_DT ) AS MAX_PLN_DELIV_DT,
+    MAX( RS.RESCHD_MATL_AVAIL_DT ) AS MAX_RESCHD_MAD,
+    MAX( RS.RESCHD_DELIV_DT ) AS MAX_RESCHD_DELIV_DT,
+    MIN( RS.PLN_DELIV_DT ) AS MIN_PLN_DELIV_DT,
+    MIN( RS.RESCHD_DELIV_DT ) AS MIN_RESCHD_DELIV_DT,
+    SUM( RS.CNFRM_QTY ) AS SUM_CNFRM_QTY,
+    SUM( RS.RESCHD_CNFRM_QTY ) AS SUM_RESCHD_CNFRM_QTY,
+    MAX( SDSL.SCHD_LN_DELIV_BLK_CD ) AS SCHD_LN_DELIV_BLOCK,
+    MAX( SD.DELIV_BLK_CD ) AS HEADER_DELIV_BLOCK,
+    
+    SUM( CASE
+        WHEN ( SDSL.SCHD_LN_DELIV_BLK_CD IS NOT NULL OR SD.DELIV_BLK_CD IS NOT NULL ) AND
+                RS.PLN_MATL_AVAIL_DT < RS.RESCHD_DT AND SDSL.SCHD_LN_DELIV_BLK_CD <> 'YF'
+            THEN RS.CNFRM_QTY
+        ELSE 0
+    END ) AS DELIV_BLOCK,
+    
+    SUM( CASE
+        WHEN DLR.REJ_DT IS NOT NULL OR ( SDSL.SCHD_LN_DELIV_BLK_CD <> 'YF' AND RS.PLN_MATL_AVAIL_DT < RS.RESCHD_DT )
+            THEN RS.CNFRM_QTY
+        ELSE 0
+    END ) AS POLICY,
+    
+    SUM( CASE
+        WHEN RS.PLN_MATL_AVAIL_DT < RS.RESCHD_DT AND CH.CUST_GRP2_CD = 'MAN' AND SDSL.SCHD_LN_DELIV_BLK_CD IS NULL
+            THEN RS.CNFRM_QTY
+        ELSE 0
+    END ) AS MAD_IN_PAST_MAN,
+    
+    SUM( CASE
+        WHEN RS.PLN_MATL_AVAIL_DT < RS.RESCHD_DT AND CH.CUST_GRP2_CD <> 'MAN' AND SDSL.SCHD_LN_DELIV_BLK_CD IS NULL
+            THEN RS.CNFRM_QTY
+        ELSE 0
+    END ) AS MAD_IN_PAST_SUPPLY,    
+    
+    MAX( CASE WHEN RS.RESCHD_MATL_AVAIL_DT IS NULL THEN RS.PLN_MATL_AVAIL_DT END ) AS MAX_DATE_QTY_DELETED,
+    MAX( CASE WHEN RS.PLN_MATL_AVAIL_DT IS NULL THEN RS.RESCHD_MATL_AVAIL_DT END ) AS MAX_DATE_QTY_ADDED,
+    
+    SUM( CASE
+        WHEN RS.RESCHD_MATL_AVAIL_DT IS NOT NULL AND RS.PLN_MATL_AVAIL_DT IS NOT NULL AND RS.CNFRM_QTY > RS.RESCHD_CNFRM_QTY
+            THEN RS.CNFRM_QTY - RS.RESCHD_CNFRM_QTY
+        ELSE 0
+    END ) AS SUM_QTY_DECREASED,
+    
+    SUM( CASE
+        WHEN RS.RESCHD_MATL_AVAIL_DT IS NOT NULL AND RS.PLN_MATL_AVAIL_DT IS NOT NULL AND RS.CNFRM_QTY < RS.RESCHD_CNFRM_QTY
+            THEN RS.RESCHD_CNFRM_QTY - RS.CNFRM_QTY
+        ELSE 0
+    END ) AS SUM_QTY_INCREASED,
+    
+    MAX( CASE
+        WHEN RS.RESCHD_MATL_AVAIL_DT IS NOT NULL AND RS.PLN_MATL_AVAIL_DT IS NOT NULL AND RS.CNFRM_QTY > RS.RESCHD_CNFRM_QTY
+            THEN RS.RESCHD_MATL_AVAIL_DT
+    END ) AS MAX_DATE_QTY_DECREASED,
+    
+    MAX( CASE
+        WHEN RS.RESCHD_MATL_AVAIL_DT IS NOT NULL AND RS.PLN_MATL_AVAIL_DT IS NOT NULL AND RS.CNFRM_QTY > RS.RESCHD_CNFRM_QTY
+            THEN RS.RESCHD_MATL_AVAIL_DT
+    END ) AS MAX_DATE_QTY_INCREASED,
+    
+    SUM( CASE
+        WHEN RS.PLN_MATL_AVAIL_DT > RS.RESCHD_MATL_AVAIL_DT AND RS.PLN_DELIV_DT IS NOT NULL
+            THEN ( CASE
+                WHEN RS.CNFRM_QTY > RS.RESCHD_CNFRM_QTY
+                    THEN RS.RESCHD_CNFRM_QTY
+                ELSE RS.CNFRM_QTY
+            END )
+        ELSE 0
+    END ) AS DATE_IMPROVED_QTY,
+    
+    SUM( CASE
+        WHEN RS.PLN_MATL_AVAIL_DT < RS.RESCHD_MATL_AVAIL_DT AND RS.PLN_DELIV_DT IS NOT NULL
+            THEN ( CASE
+                WHEN RS.CNFRM_QTY > RS.RESCHD_CNFRM_QTY
+                    THEN RS.RESCHD_CNFRM_QTY
+                ELSE RS.CNFRM_QTY
+            END )
+        ELSE 0
+    END ) AS DATE_PUSH_QTY,
+    
+    SUM( CASE
+        WHEN RS.PLN_DELIV_DT IS NULL
+            THEN RS.RESCHD_CNFRM_QTY
+        ELSE 0
+    END ) AS QUANTITY_ADDED,
+    
+    SUM( CASE
+        WHEN RS.RESCHD_DELIV_DT IS NULL
+            THEN RS.CNFRM_QTY
+        ELSE 0
+    END ) AS QUANTITY_DELETED,
+    
+    ( CASE
+        WHEN SCHD_LINE_COUNT = 1
+            THEN DATE_IMPROVED_QTY
+        ELSE ( CASE
+            WHEN SCHD_LINE_COUNT = 2
+                THEN ( CASE
+                    WHEN MAX_RESCHD_MAD < MAX_PLN_MAD AND DATE_PUSH_QTY = 0 AND
+                            ( SUM_QTY_DECREASED <> SUM_QTY_INCREASED OR DATE_IMPROVED_QTY > 0 )
+                        THEN DATE_IMPROVED_QTY + SUM_QTY_INCREASED + QUANTITY_ADDED
+                    ELSE ( CASE
+                        WHEN MAX_PLN_MAD = MAX_RESCHD_MAD AND DATE_IMPROVED_QTY = 0
+                            THEN SUM_QTY_INCREASED
+                        ELSE DATE_IMPROVED_QTY
+                    END )
+                END )
+            ELSE ( CASE
+                WHEN MAX_DATE_QTY_DELETED > MAX_DATE_QTY_INCREASED
+                    THEN ( CASE
+                        WHEN ( QUANTITY_DELETED + SUM_QTY_DECREASED ) > SUM_QTY_INCREASED
+                            THEN SUM_QTY_INCREASED + DATE_IMPROVED_QTY
+                        ELSE DATE_IMPROVED_QTY + QUANTITY_DELETED
+                    END )
+                ELSE ( CASE
+                    WHEN MAX_DATE_QTY_INCREASED > MAX_DATE_QTY_DECREASED AND 
+                            ( SUM_QTY_INCREASED + QUANTITY_ADDED) = ( SUM_QTY_DECREASED + QUANTITY_ADDED ) AND
+                            ( MAX_RESCHD_MAD < MAX_PLN_MAD )
+                        THEN DATE_IMPROVED_QTY
+                    ELSE ( CASE
+                        WHEN MAX_RESCHD_MAD < MAX_PLN_MAD
+                            THEN DATE_IMPROVED_QTY + SUM_QTY_DECREASED
+                        ELSE DATE_IMPROVED_QTY
+                    END )
+                END )                
+            END )            
+        END )
+    END ) AS CONFIRM_DATE_IMPR_QTY,
+    
+    -- CONFIRM_DATE_PUSH_QTY
+    ( CASE
+        WHEN SCHD_LINE_COUNT = 1
+            THEN DATE_PUSH_QTY
+        ELSE ( CASE
+            WHEN SCHD_LINE_COUNT = 2
+                THEN ( CASE
+                    WHEN MAX_RESCHD_MAD > MAX_PLN_MAD
+                        THEN DATE_PUSH_QTY + SUM_QTY_DECREASED + QUANTITY_DELETED
+                    ELSE DATE_PUSH_QTY
+                END ) 
+            ELSE ( CASE
+                WHEN MAX_DATE_QTY_ADDED > MAX_DATE_QTY_DECREASED
+                    THEN ( CASE
+                        WHEN QUANTITY_ADDED >= SUM_QTY_DECREASED AND MAX_RESCHD_MAD > MAX_PLN_MAD
+                            THEN SUM_QTY_DECREASED + DATE_PUSH_QTY
+                        ELSE ( CASE
+                            WHEN MAX_RESCHD_MAD > MAX_PLN_MAD OR QUANTITY_ADDED = SUM_QTY_DECREASED
+                                THEN DATE_PUSH_QTY
+                            ELSE ( CASE
+                                WHEN MAX_RESCHD_MAD > MAX_PLN_MAD
+                                    THEN DATE_PUSH_QTY + QUANTITY_ADDED
+                                ELSE 0
+                            END )                        
+                        END )
+                    END )
+                ELSE ( CASE
+                    WHEN MAX_DATE_QTY_INCREASED > MAX_DATE_QTY_DECREASED AND 
+                            ( SUM_QTY_INCREASED + QUANTITY_ADDED ) = ( SUM_QTY_DECREASED + QUANTITY_DELETED ) AND
+                            MAX_RESCHD_MAD > MAX_PLN_MAD
+                        THEN SUM_QTY_INCREASED + DATE_PUSH_QTY
+                    ELSE ( CASE
+                        WHEN SUM_QTY_DECREASED < SUM_QTY_INCREASED AND SUM_QTY_DECREASED > 0 AND MAX_RESCHD_MAD > MAX_PLN_MAD
+                            THEN ( CASE
+                                WHEN ( SUM_QTY_INCREASED + QUANTITY_ADDED ) = ( SUM_QTY_DECREASED + QUANTITY_DELETED )
+                                    THEN DATE_PUSH_QTY + QUANTITY_DELETED
+                                ELSE SUM_QTY_DECREASED + DATE_PUSH_QTY
+                            END )                        
+                        ELSE ( CASE
+                            WHEN MAX_RESCHD_MAD > MAX_PLN_MAD AND SUM_QTY_DECREASED = SUM_QTY_INCREASED
+                                THEN SUM_QTY_INCREASED
+                            ELSE ( CASE
+                                WHEN MAX_DATE_QTY_INCREASED > MAX_DATE_QTY_DECREASED
+                                    THEN ( CASE
+                                        WHEN SUM_QTY_DECREASED = SUM_QTY_INCREASED
+                                            THEN SUM_QTY_INCREASED
+                                        ELSE DATE_PUSH_QTY + SUM_QTY_DECREASED
+                                    END )
+                                ELSE 0
+                            END )
+                        END )
+                    END )
+                END )
+            END )
+        END ) 
+    END ) AS CONFIRM_DATE_PUSH_QTY
+
+FROM NA_BI_VWS.ORD_RESCHD RS
+
+    LEFT OUTER JOIN (
+            SELECT
+                D.ORDER_ID,
+                D.ORDER_LINE_NBR,
+                D.REJ_DT
+            FROM GDYR_VWS.DELIV_LINE_REJ D
+            GROUP BY
+                D.ORDER_ID,
+                D.ORDER_LINE_NBR,
+                D.REJ_DT
+            ) DLR
+        ON DLR.ORDER_ID = RS.ORDER_ID
+        AND DLR.ORDER_LINE_NBR = RS.ORDER_LINE_NBR
+        AND DLR.REJ_DT = RS.PRIOR_DY_RESCHD_DT
+
+    LEFT OUTER JOIN NA_BI_VWS.NAT_SLS_DOC_SCHD_LN SDSL
+        ON SDSL.SLS_DOC_ID = RS.ORDER_ID
+        AND SDSL.SLS_DOC_ITM_ID = RS.ORDER_LINE_NBR
+        AND SDSL.SCHD_LN_ID = RS.SCHED_LINE_NBR
+        AND RS.PRIOR_DY_RESCHD_DT BETWEEN SDSL.EFF_DT AND SDSL.EXP_DT
+                        
+    INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR CH
+        ON CH.SHIP_TO_CUST_ID = RS.SHIP_TO_CUST_ID
+        AND CH.CUST_GRP_ID <> '3R' -- COWD
+        AND CH.OWN_CUST_ID NOT IN ( '00A0005538' ) -- COWD
+
+    INNER JOIN NA_BI_VWS.NAT_SLS_DOC SD
+        ON SD.SLS_DOC_ID = RS.ORDER_ID
+        AND RS.PRIOR_DY_RESCHD_DT BETWEEN SD.EFF_DT AND SD.EXP_DT
+        AND SD.SLS_DOC_TYP_CD NOT IN ('ZLS', 'ZLZ')
+        AND SD.CUST_PRCH_ORD_TYP_CD <> 'RO'
+
+WHERE
+    RS.RESCHD_DT >= DATE '2014-02-01'
+    AND RS.PBU_NBR IN ( '01', '03' )
+    AND NOT ( CH.OWN_CUST_ID = '00A0000632' AND SUBSTR( SD.CUST_PRCH_ORD_ID, 5, 2 ) = '62' )
+    --AND ( CASE WHEN CH.OWN_CUST_ID = '00A0000632' AND SUBSTR( SD.CUST_PRCH_ORD_ID, 5, 2 ) <> '62' THEN 0 ELSE 1 END ) = 1 --SAM'S KIOSK
+    
+GROUP BY
+    RS.ORDER_ID,
+    RS.ORDER_LINE_NBR,
+    RS.RESCHD_DT,
+    RS.CMN_OWN_CUST_ID,
+    RS.MATL_ID,
+    RS.PBU_NBR,
+    RS.PRIOR_DY_RESCHD_DT
+
+    ) SC
+
+    LEFT OUTER JOIN GDYR_VWS.OPEN_ORDER OO
+        ON OO.ORIG_SYS_ID = 2
+        AND OO.ORDER_ID = SC.ORDER_ID
+        AND OO.ORDER_LINE_NBR = SC.ORDER_LINE_NBR
+        AND SC.PRIOR_DY_RESCHD_DT BETWEEN OO.EFF_DT AND OO.EXP_DT
+
+/*ORDER BY
+    SC.ORDER_ID,
+    SC.ORDER_LINE_NBR,
+    SC.RESCHD_DT*/

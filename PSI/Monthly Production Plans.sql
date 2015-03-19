@@ -1,0 +1,155 @@
+﻿SELECT
+    PLN.QUERY_TYPE
+    , PLN.MONTH_DT
+    , PLN.MATL_ID
+    , PLN.FACILITY_ID
+    , ROUND(SUM(PLN.QUANTITY)) AS QUANTITY
+
+FROM (
+
+    -- HISTORICAL PLANS
+
+    SELECT
+        CAST('P' AS CHAR(1)) AS QUERY_TYPE
+        , C.POSTED_DT - (EXTRACT(DAY FROM C.POSTED_DT)-1) AS MONTH_DT
+        , PP.PLN_MATL_ID AS MATL_ID
+        , PP.FACILITY_ID
+        , SUM(CAST(PP.PLN_QTY / 7.00 AS DECIMAL(15,3))) AS QUANTITY
+
+    FROM GDYR_VWS.PROD_PLN PP
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = PP.PLN_MATL_ID
+            AND M.PBU_NBR = '01'
+            --AND M.PBU_NBR IN ('01', '03', '04', '05', '07', '08','09')
+        
+        INNER JOIN GDYR_VWS.FACILITY F
+            ON F.FACILITY_ID = PP.FACILITY_ID
+            AND F.EXP_DT = DATE '5555-12-31'
+            AND F.ORIG_SYS_ID = 2
+            AND F.LANG_ID = 'EN'
+            AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+            AND F.DISTR_CHAN_CD = '81'
+
+        INNER JOIN GDYR_VWS.DMAN_GRP_PRD_FCTR C
+            ON C.MEAS_DT = PP.PROD_WK_DT
+            AND C.FNL_PERDY_ID = 'D'
+            AND C.PERDY_ID = 'W'
+            AND C.EXP_DT = DATE '5555-12-31'
+            --AND C.SBU_ID = 2
+            -- BEGINNING OF PREVIOUS YEAR
+            AND C.POSTED_DT >= CAST(EXTRACT(YEAR FROM CURRENT_DATE-1)-1 || '-01-01' AS DATE)
+
+    WHERE
+        PP.PROD_PLN_CD IN ('0', '7')
+        AND CAST(PP.PROD_WK_DT-3 AS DATE) BETWEEN PP.EFF_DT AND PP.EXP_DT
+        AND PP.PROD_WK_DT <= CURRENT_DATE
+        
+    GROUP BY
+        QUERY_TYPE
+        , MONTH_DT
+        , PP.PLN_MATL_ID
+        , PP.FACILITY_ID
+
+    UNION ALL
+
+    -- FUTURE WEEKS WITHIN PLANNER HORIZON
+        
+    SELECT
+        CAST('P' AS CHAR(1)) AS QUERY_TYPE
+        , C.POSTED_DT - (EXTRACT(DAY FROM C.POSTED_DT)-1) AS MONTH_DT
+        , PP.PLN_MATL_ID AS MATL_ID
+        , PP.FACILITY_ID
+        , SUM(CAST(PP.PLN_QTY / 7.00 AS DECIMAL(15,3))) AS QUANTITY
+
+    FROM GDYR_VWS.PROD_PLN PP
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = PP.PLN_MATL_ID
+            AND M.PBU_NBR = '01'
+            --AND M.PBU_NBR IN ('01', '03', '04', '05', '07', '08','09')
+        
+        INNER JOIN GDYR_VWS.FACILITY F
+            ON F.FACILITY_ID = PP.FACILITY_ID
+            AND F.EXP_DT = DATE '5555-12-31'
+            AND F.ORIG_SYS_ID = 2
+            AND F.LANG_ID = 'EN'
+            AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+            AND F.DISTR_CHAN_CD = '81'
+
+        INNER JOIN GDYR_VWS.DMAN_GRP_PRD_FCTR C
+            ON C.MEAS_DT = PP.PROD_WK_DT
+            AND C.FNL_PERDY_ID = 'D'
+            AND C.PERDY_ID = 'W'
+            AND C.EXP_DT = DATE '5555-12-31'
+            --AND C.SBU_ID = 2
+            AND C.POSTED_DT BETWEEN DATE '2014-10-01' AND DATE '2014-10-31'
+
+    WHERE
+        PP.PROD_PLN_CD IN ('0', '7')
+        AND PP.EXP_DT = DATE '5555-12-31'
+        AND PP.PROD_WK_DT BETWEEN CURRENT_DATE+1 AND CURRENT_DATE+56
+        
+    GROUP BY
+        QUERY_TYPE
+        , MONTH_DT
+        , PP.PLN_MATL_ID
+        , PP.FACILITY_ID
+        
+    UNION ALL
+
+    -- PLAN CODE A, SNP PRODUCTION PLANS
+
+    SELECT
+        CAST('P' AS CHAR(1)) AS QUERY_TYPE
+        , C.POSTED_DT - (EXTRACT(DAY FROM C.POSTED_DT)-1) AS MONTH_DT
+        , PP.PLN_MATL_ID AS MATL_ID
+        , PP.FACILITY_ID
+        , SUM(CAST(PP.PLN_QTY / 7.00 AS DECIMAL(15,3))) AS QUANTITY
+
+    FROM GDYR_VWS.PROD_PLN PP
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = PP.PLN_MATL_ID
+            AND M.PBU_NBR = '01'
+            --AND M.PBU_NBR IN ('01', '03', '04', '05', '07', '08','09')
+        
+        INNER JOIN GDYR_VWS.FACILITY F
+            ON F.FACILITY_ID = PP.FACILITY_ID
+            AND F.EXP_DT = DATE '5555-12-31'
+            AND F.ORIG_SYS_ID = 2
+            AND F.LANG_ID = 'EN'
+            AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+            AND F.PURCH_ORG_ID IN ('N701', 'N702', 'N703')
+            AND F.DISTR_CHAN_CD = '81'
+
+        INNER JOIN GDYR_VWS.DMAN_GRP_PRD_FCTR C
+            ON C.MEAS_DT = PP.PROD_WK_DT
+            AND C.FNL_PERDY_ID = 'D'
+            AND C.PERDY_ID = 'W'
+            AND C.EXP_DT = DATE '5555-12-31'
+            --AND C.SBU_ID = 2
+            -- ROLLING 6 MONTHS FORWARD
+            AND C.POSTED_DT <= ADD_MONTHS(CURRENT_DATE-1, 7) - EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, 7))
+
+    WHERE
+        PP.PROD_PLN_CD = 'A'
+        AND PP.EXP_DT = DATE '5555-12-31'
+        AND PP.PROD_WK_DT > CURRENT_DATE+56
+        
+    GROUP BY
+        QUERY_TYPE
+        , MONTH_DT
+        , PP.PLN_MATL_ID
+        , PP.FACILITY_ID
+
+    ) PLN
+    
+/*WHERE
+    PLN.MATL_ID = '000000000000103103'*/
+    
+GROUP BY
+    PLN.QUERY_TYPE
+    , PLN.MONTH_DT
+    , PLN.MATL_ID
+    , PLN.FACILITY_ID

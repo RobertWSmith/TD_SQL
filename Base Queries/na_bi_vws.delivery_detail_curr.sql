@@ -1,0 +1,103 @@
+﻿SELECT 
+    DDC.FISCAL_YR
+    , DDC.DELIV_ID
+    , DDC.DELIV_LINE_NBR
+    
+    , TRIM(DDC.BILL_LADING_ID) AS BILL_LADING_ID
+    
+    , DDC.ORDER_FISCAL_YR
+    , DDC.ORDER_ID
+    , DDC.ORDER_LINE_NBR
+    
+    , DDC.GOODS_ISS_IND
+
+    , DDC.SALES_ORG_CD
+    , DDC.DISTR_CHAN_CD
+    , DDC.CUST_GRP_ID
+    , DDC.CUST_GRP2_CD
+
+    , DDC.SHIP_TO_CUST_ID
+
+    , DDC.DELIV_LINE_FACILITY_ID
+    , DDC.SHIP_PT_ID
+
+    , DDC.MATL_ID
+    , TRIM(DDC.CUST_PART_NBR) AS CUST_PART_NBR
+    , DDC.BATCH_NBR
+    
+    , DDC.QTY_UNIT_MEAS_ID
+    , DDC.DELIV_QTY
+    
+    , DDC.RPT_QTY_UNIT_MEAS_ID
+    , DDC.RPT_DELIV_QTY
+    
+    , DDC.SLS_QTY_UNIT_MEAS_ID
+    , DDC.SLS_DELIV_QTY
+    
+    , DDC.VOL_UNIT_MEAS_ID
+    , DDC.VOL
+    
+    , DDC.WT_UNIT_MEAS_ID
+    , DDC.NET_WT
+    , DDC.GROSS_WT
+    
+    , DDC.DELIV_NOTE_CREA_DT
+    , DDC.DELIV_LINE_CREA_DT
+    , DDC.TRANSP_PLN_DT
+    , DDC.LOAD_DT
+    , DDC.PICK_DT
+    , DDC.PLN_GOODS_MVT_DT
+    , DDC.ACTL_GOODS_ISS_DT
+    , DDC.DELIV_DT
+    , DDC.DELIV_TM
+    
+    , DDC.RETURN_IND
+    , DDC.PRTL_DLVY_CD
+    , DDC.DELIV_PRTY_ID
+    , DDC.SHIP_COND_ID
+    , DDC.RTG_ID AS ROUTE_ID
+    , DDC.TERMS_ID AS INCOTERMS_ID
+    , TRIM(DDC.UNLD_PT_CD) AS UNLD_PT_CD
+    , DDC.SPCL_PROC_ID
+    
+    , DDC.DELIV_CAT_ID
+    , DDC.DELIV_TYPE_ID
+    , DDC.ITEM_CAT_ID
+
+FROM NA_BI_VWS.DELIVERY_DETAIL_CURR DDC
+
+/*    INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR MATL
+        ON MATL.MATL_ID = DDC.MATL_ID
+        AND MATL.PBU_NBR IN ('01', '03', '04', '05', '07', '08')
+        AND MATL.MATL_TYPE_ID IN ('ACCT', 'PCTL')
+        AND MATL.MATL_STA_ID NOT IN ('DD', 'DX', 'DN')*/
+
+WHERE
+    DDC.DELIV_CAT_ID = 'J'
+    AND DDC.DELIV_NOTE_CREA_DT >= ADD_MONTHS(CURRENT_DATE-1, -6) - (EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, -6)) - 1)
+    AND DDC.DELIV_QTY > 0
+    AND DDC.SALES_ORG_CD IN (
+            'N301', 'N302', 'N303', 'N304', 'N305'
+            , 'N311', 'N312', 'N313'
+            , 'N321', 'N322', 'N323', 'N325'
+        )
+    AND DDC.DISTR_CHAN_CD IN (
+            '01', '03', '04', '05', '06', '07', '08', '09'
+            , '10', '11', '12', '14', '15', '16'
+            , '20', '21', '22'
+            , '30', '31', '32'
+            , '40', '41', '42', '43', '44', '45'
+            , '50', '51', '55', '56'
+            , '62'
+        )
+    AND DDC.DELIV_LINE_FACILITY_ID IN (
+            'N501', 'N502', 'N503', 'N505', 'N508', 'N509', 'N510', 'N513', 'N518', 'N526', 'N5CA', 'N5US'
+            , 'N602', 'N607', 'N613', 'N61L', 'N61Q', 'N623', 'N636', 'N637', 'N639', 'N63X', 'N64C', 'N64E'
+            , 'N64M', 'N64T', 'N653', 'N659', 'N661', 'N662', 'N667', 'N670', 'N692', 'N699', 'N6A6', 'N6AE'
+            , 'N6AG', 'N6CK', 'N6D3', 'N6DA', 'N6DB', 'N6DE', 'N6DF', 'N6J8'
+        )
+
+ORDER BY
+    DDC.FISCAL_YR
+    , DDC.DELIV_ID
+    , DDC.DELIV_LINE_NBR

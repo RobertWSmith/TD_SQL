@@ -1,0 +1,137 @@
+﻿SELECT
+    Q.SHIPMENT_MONTH
+    , Q.DELIV_LINE_CNT
+    , Q.BOL_CNT
+    , Q.SHIP_TO_CUST_CNT
+    , Q.MONTHLY_GROSS_WEIGHT_TEST
+    , Q.OWN_CUST_ID
+    , Q.OWN_CUST_NAME
+    , Q.OWN_CUST
+    , Q.SALES_ORG_CD
+    , Q.SALES_ORG
+    , Q.TIRE_CUST_TYP_CD
+    , Q.FACILITY_ID
+    , Q.CUST_GRP2_CD
+    , Q.QTY_UOM
+    , Q.DELIVERY_QTY
+    , Q.GROSS_WEIGHT
+    , Q.VOL_UOM
+    , Q.VOL
+    , Q.CMPR_VOL
+
+FROM (
+
+    SELECT
+        CAST(CAL.MONTH_DT AS FORMAT 'YYYY-MMM') AS SHIPMENT_MONTH
+        , COUNT(DISTINCT DDC.FISCAL_YR || DDC.DELIV_ID || DDC.DELIV_LINE_NBR) AS DELIV_LINE_CNT
+        , COUNT(DISTINCT NULLIF(DDC.BILL_LADING_ID, '')) AS BOL_CNT
+        , COUNT(DISTINCT DDC.SHIP_TO_CUST_ID) AS SHIP_TO_CUST_CNT
+        
+        , CASE
+            WHEN GROSS_WEIGHT > 100000
+                THEN '100k+'
+            WHEN GROSS_WEIGHT BETWEEN 50000 AND 100000
+                THEN '50-100K'
+            WHEN GROSS_WEIGHT BETWEEN 20000 AND 50000
+                THEN '20-50K'
+            WHEN GROSS_WEIGHT BETWEEN 5000 AND 20000
+                THEN '5-20K'
+            WHEN GROSS_WEIGHT < 5000
+                THEN '5K-'
+            END AS MONTHLY_GROSS_WEIGHT_TEST
+        
+        , CUST.OWN_CUST_ID
+        , CUST.OWN_CUST_NAME
+        , CUST.OWN_CUST_ID || ' - ' || CUST.OWN_CUST_NAME AS OWN_CUST
+    	
+    	, CUST.SALES_ORG_CD
+    	, CUST.SALES_ORG_CD || ' - ' || CUST.SALES_ORG_NAME AS SALES_ORG
+        
+        , CUST.TIRE_CUST_TYP_CD
+        
+        , DDC.DELIV_LINE_FACILITY_ID AS FACILITY_ID
+        , DDC.CUST_GRP2_CD
+        
+        , CAST('EA' AS CHAR(3)) AS QTY_UOM
+        , SUM(CASE 
+            WHEN DDC.QTY_UNIT_MEAS_ID = 'LB'
+                THEN DDC.DELIV_QTY / 100
+            ELSE DDC.DELIV_QTY
+            END) AS DELIVERY_QTY
+        
+        , CAST('LB' AS CHAR(3)) AS WT_UOM
+        , SUM(CASE
+            WHEN DDC.WT_UNIT_MEAS_ID = 'KG'
+                THEN DDC.GROSS_WT * 2.20
+            ELSE DDC.GROSS_WT
+            END) AS GROSS_WEIGHT
+        
+        , DDC.VOL_UNIT_MEAS_ID AS VOL_UOM
+        , SUM(DDC.VOL) AS VOL
+        , SUM(CAST(CASE MATL.PBU_NBR || MATL.MKT_AREA_NBR
+            WHEN '0101' THEN 0.75
+            WHEN '0108' THEN 0.80
+            WHEN '0305' THEN 1.20
+            WHEN '0314' THEN 1.20
+            WHEN '0406' THEN 1.20
+            WHEN '0507' THEN 0.75
+            WHEN '0711' THEN 0.75
+            WHEN '0712' THEN 0.75
+            WHEN '0803' THEN 1.20
+            WHEN '0923' THEN 0.75
+            ELSE 1
+            END * MATL.UNIT_VOL * CASE 
+            WHEN DDC.QTY_UNIT_MEAS_ID = 'LB'
+                THEN DDC.DELIV_QTY / 100
+            ELSE DDC.DELIV_QTY
+            END AS DECIMAL(15,3))) AS CMPR_VOL
+
+    FROM NA_BI_VWS.DELIVERY_DETAIL_CURR DDC
+
+        INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+            ON CAL.DAY_DATE = DDC.ACTL_GOODS_ISS_DT
+            AND CAL.DAY_DATE BETWEEN DATE '2014-01-01' AND (CURRENT_DATE-1)
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR MATL
+            ON MATL.MATL_ID = DDC.MATL_ID
+            AND MATL.PBU_NBR IN ('01', '03', '04', '05', '07', '08', '09')
+            AND MATL.MATL_TYPE_ID IN ('ACCT', 'PCTL')
+
+        INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR CUST
+            ON CUST.SHIP_TO_CUST_ID = DDC.SHIP_TO_CUST_ID
+            AND CUST.SALES_ORG_CD IN ('N301', 'N311')
+            AND CUST.OWN_CUST_ID NOT IN ('00A0003088', '00A0000632', '00A0003149')
+            AND CUST.CUST_GRP2_CD <> 'TLB'
+
+    WHERE
+        DDC.GOODS_ISS_IND = 'Y'
+        AND DDC.DELIV_CAT_ID = 'J'
+        AND DDC.DISTR_CHAN_CD <> '81'
+        AND DDC.DELIV_QTY > 0
+        AND DDC.DELIV_NOTE_CREA_DT >= DATE '2014-01-01'
+        AND DDC.CUST_GRP2_CD <> 'TLB'
+        AND CUST.PRIM_SHIP_FACILITY_ID = DDC.DELIV_LINE_FACILITY_ID
+
+    GROUP BY
+        CAL.MONTH_DT
+        
+        , CUST.OWN_CUST_ID
+        , CUST.OWN_CUST_NAME
+        , OWN_CUST
+    	
+    	, CUST.SALES_ORG_CD
+    	, SALES_ORG
+        
+        , CUST.TIRE_CUST_TYP_CD
+        
+        , DDC.DELIV_LINE_FACILITY_ID
+        , DDC.CUST_GRP2_CD
+        
+        , QTY_UOM
+        
+        , WT_UOM
+        
+        , DDC.VOL_UNIT_MEAS_ID
+
+    ) Q
+

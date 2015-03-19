@@ -1,0 +1,353 @@
+﻿SELECT
+    ODD.BUS_DT
+    
+    , ODD.SALES_ORG_CD
+    , ODD.DISTR_CHAN_CD
+    , ODD.CUST_GRP_ID
+    --, ODD.OWN_CUST_ID
+    --, ODD.SHIP_TO_CUST_ID
+    
+    , ODD.PBU_NBR
+    , ODD.CATEGORY_CD
+    , ODD.MATL_ID
+    --, ODD.FACILITY_ID
+
+    , ODD.QTY_UOM
+    , SUM(CASE
+        WHEN ODD.TYP = 'ORDER' AND ODD.DESCR = 'FRDD'
+            THEN ODD.QUANTITY
+        ELSE 0
+        END) AS FRDD_ORDER_QTY
+    , SUM(CASE
+        WHEN ODD.TYP = 'ORDER' AND ODD.DESCR = 'RO'
+            THEN ODD.QUANTITY
+        ELSE 0
+        END) AS RO_ORDER_QTY    
+    , SUM(CASE
+        WHEN ODD.TYP = 'ORDER' AND ODD.DESCR = 'PGI'
+            THEN ODD.QUANTITY
+        ELSE 0
+        END) AS PGI_ORDER_QTY  
+    , SUM(CASE
+        WHEN ODD.TYP = 'ORDER' AND ODD.DESCR = 'SA'
+            THEN ODD.QUANTITY
+        ELSE 0
+        END) AS SA_ORDER_QTY  
+    , SUM(CASE
+        WHEN ODD.TYP = 'DELIV' AND ODD.DESCR = 'AGID'
+            THEN ODD.QUANTITY
+        ELSE 0
+        END) AS AGID_DELIV_QTY
+
+FROM (
+
+    SELECT
+        CAST('ORDER' AS VARCHAR(10)) AS TYP
+        , CAST('FRDD' AS VARCHAR(10)) AS DESCR
+
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , ODC.SHIP_TO_CUST_ID
+        
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR AS CATEGORY_CD
+        , ODC.MATL_ID
+
+        , ODC.FACILITY_ID
+        , ODC.FRST_RDD AS BUS_DT
+        
+        , ODC.QTY_UNIT_MEAS_ID AS QTY_UOM
+        , SUM(ZEROIFNULL(ODC.ORDER_QTY)) AS QUANTITY
+
+    FROM NA_BI_VWS.ORDER_DETAIL ODC
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = ODC.MATL_ID
+            AND M.PBU_NBR = '01'
+            AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+        INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_CURR C
+            ON C.SHIP_TO_CUST_ID = ODC.SHIP_TO_CUST_ID
+            AND C.SALES_ORG_CD NOT IN ('N306', 'N316', 'N326')
+            AND C.DISTR_CHAN_CD <> '81'
+
+    WHERE
+        ODC.EXP_DT = DATE '5555-12-31'
+        AND ODC.ORDER_CAT_ID = 'C'
+        AND ODC.RO_PO_TYPE_IND = 'N'
+        AND ODC.SCHED_LINE_NBR = 1
+        AND ODC.FRST_RDD BETWEEN ADD_MONTHS(CURRENT_DATE-1, -3) - (EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, -3)) -1)
+            AND ADD_MONTHS(CURRENT_DATE-1, 4) - EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, 4))
+
+    GROUP BY
+        TYP
+        , DESCR
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , ODC.SHIP_TO_CUST_ID
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , ODC.MATL_ID
+        , ODC.FACILITY_ID
+        , ODC.FRST_RDD
+        , ODC.QTY_UNIT_MEAS_ID
+
+    UNION ALL
+
+    SELECT
+        CAST('ORDER' AS VARCHAR(10)) AS TYP
+        , CAST('RO' AS VARCHAR(10)) AS DESCR
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , ODC.SHIP_TO_CUST_ID
+        
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , ODC.MATL_ID
+        , ODC.FACILITY_ID
+        , ODC.FRST_RDD AS BUS_DT
+        
+        , ODC.QTY_UNIT_MEAS_ID AS QTY_UOM
+        , SUM(ZEROIFNULL(ODC.ORDER_QTY)) AS QUANTITY
+
+    FROM NA_BI_VWS.ORDER_DETAIL ODC
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = ODC.MATL_ID
+            AND M.PBU_NBR = '01'
+            AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+        INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_CURR C
+            ON C.SHIP_TO_CUST_ID = ODC.SHIP_TO_CUST_ID
+            AND C.SALES_ORG_CD NOT IN ('N306', 'N316', 'N326')
+            AND C.DISTR_CHAN_CD <> '81'
+
+    WHERE
+        ODC.EXP_DT = DATE '5555-12-31'
+        AND ODC.ORDER_CAT_ID = 'C'
+        AND ODC.RO_PO_TYPE_IND = 'Y'
+        AND ODC.SCHED_LINE_NBR = 1
+        AND ODC.FRST_RDD BETWEEN ADD_MONTHS(CURRENT_DATE-1, -3) - (EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, -3)) -1)
+            AND ADD_MONTHS(CURRENT_DATE-1, 4) - EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, 4))
+
+    GROUP BY
+        TYP
+        , DESCR
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , ODC.SHIP_TO_CUST_ID
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , ODC.MATL_ID
+        , ODC.FACILITY_ID
+        , ODC.FRST_RDD
+        , ODC.QTY_UNIT_MEAS_ID
+
+    UNION ALL
+
+    SELECT
+        CAST('ORDER' AS VARCHAR(10)) AS TYP
+        , CAST('PGI' AS VARCHAR(10)) AS DESCR
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , ODC.SHIP_TO_CUST_ID
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , ODC.MATL_ID
+        , ODC.FACILITY_ID
+        , ODC.PLN_GOODS_ISS_DT AS BUS_DT
+        
+        , ODC.QTY_UNIT_MEAS_ID AS QTY_UOM
+        , SUM(OOL.OPEN_CNFRM_QTY) AS QUANTITY
+        
+    FROM NA_BI_VWS.OPEN_ORDER_SCHDLN_CURR OOL
+
+        INNER JOIN NA_BI_VWS.ORDER_DETAIL ODC
+            ON ODC.ORDER_FISCAL_YR = OOL.ORDER_FISCAL_YR
+            AND ODC.ORDER_ID = OOL.ORDER_ID
+            AND ODC.ORDER_LINE_NBR = OOL.ORDER_LINE_NBR
+            AND ODC.SCHED_LINE_NBR = 1
+            AND ODC.EXP_DT = DATE '5555-12-31'
+            AND ODC.ORDER_CAT_ID = 'C'
+            AND ODC.RO_PO_TYPE_IND = 'N'
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = ODC.MATL_ID
+            AND M.PBU_NBR = '01'
+            AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+        INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_CURR C
+            ON C.SHIP_TO_CUST_ID = ODC.SHIP_TO_CUST_ID
+            AND C.SALES_ORG_CD NOT IN ('N306', 'N316', 'N326')
+            AND C.DISTR_CHAN_CD <> '81'
+
+    WHERE
+        OOL.OPEN_CNFRM_QTY > 0
+
+    GROUP BY
+        TYP
+        , DESCR
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , ODC.SHIP_TO_CUST_ID
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , ODC.MATL_ID
+        , ODC.FACILITY_ID
+        , ODC.PLN_GOODS_ISS_DT
+        , ODC.QTY_UNIT_MEAS_ID
+
+    UNION ALL
+
+    SELECT
+        CAST('ORDER' AS VARCHAR(10)) AS TYP
+        , CAST('SA' AS VARCHAR(10)) AS DESCR
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , SD.SHIP_TO_CUST_ID
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , SDI.MATL_ID
+        , SDI.FACILITY_ID
+        , SL.SCHD_LN_DELIV_DT
+        
+        , SDI.BASE_UOM_CD AS QTY_UOM
+        , SUM(SDI.SLS_UNIT_CUM_ORD_QTY) AS QUANTITY
+
+    FROM GDYR_BI_VWS.NAT_SLS_DOC_ITM_CURR SDI
+
+        INNER JOIN GDYR_VWS.FACILITY F
+            ON F.FACILITY_ID = SDI.FACILITY_ID
+            AND F.EXP_DT = DATE '5555-12-31'
+            AND F.ORIG_SYS_ID = 2
+            AND F.LANG_ID = 'EN'
+            AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+            AND F.PURCH_ORG_ID IN ('N701', 'N702', 'N703')
+            AND F.DISTR_CHAN_CD = '81'
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = SDI.MATL_ID
+            AND M.PBU_NBR = '01'
+            AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+        INNER JOIN GDYR_BI_VWS.NAT_SLS_DOC_CURR SD
+            ON SD.FISCAL_YR = SDI.FISCAL_YR
+            AND SD.SLS_DOC_ID = SDI.SLS_DOC_ID
+            AND SD.SD_DOC_CTGY_CD = 'E'
+            AND SD.CO_CD IN ('N101', 'N102', 'N266')
+            AND SD.SALES_ORG_CD NOT IN ('N306', 'N316', 'N326')
+            AND SD.DISTR_CHAN_CD <> '81'
+
+        INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_CURR C
+            ON C.SHIP_TO_CUST_ID = SD.SHIP_TO_CUST_ID
+            AND C.SALES_ORG_CD NOT IN ('N306', 'N316', 'N326')
+            AND C.DISTR_CHAN_CD <> '81'
+
+        INNER JOIN GDYR_BI_VWS.NAT_SLS_DOC_SCHD_LN_CURR SL
+            ON SL.FISCAL_YR = SDI.FISCAL_YR
+            AND SL.SLS_DOC_ID = SDI.SLS_DOC_ID
+            AND SL.SLS_DOC_ITM_ID = SDI.SLS_DOC_ITM_ID
+            AND SL.SCHD_LN_ID = 1
+            AND SL.SCHD_LN_DELIV_DT BETWEEN ADD_MONTHS(CURRENT_DATE-1, -3) - (EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, -3)) -1)
+            AND ADD_MONTHS(CURRENT_DATE-1, 4) - EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, 4))
+
+    WHERE
+        SDI.MATL_HIER_ID LIKE '01%' -- ANY ('01%', '03%')
+        AND SDI.REJ_REAS_ID IS NULL
+        
+    GROUP BY
+        TYP
+        , DESCR
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , SD.SHIP_TO_CUST_ID
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , SDI.MATL_ID
+        , SDI.FACILITY_ID
+        , SL.SCHD_LN_DELIV_DT
+        , SDI.BASE_UOM_CD
+
+    UNION ALL
+
+    SELECT
+        CAST('DELIV' AS VARCHAR(10)) AS TYP
+        , CAST('AGID' AS VARCHAR(10)) AS DESCR
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , DDC.SHIP_TO_CUST_ID
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , DDC.MATL_ID
+        , DDC.DELIV_LINE_FACILITY_ID
+        , DDC.ACTL_GOODS_ISS_DT
+        
+        , DDC.QTY_UNIT_MEAS_ID AS QTY_UOM
+        , SUM(DDC.DELIV_QTY) AS QUANTITY
+        
+    FROM NA_BI_VWS.DELIVERY_DETAIL_CURR DDC
+
+        INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+            ON M.MATL_ID = DDC.MATL_ID
+            AND M.PBU_NBR = '01'
+            AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+        INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_CURR C
+            ON C.SHIP_TO_CUST_ID = DDC.SHIP_TO_CUST_ID
+            AND C.SALES_ORG_CD NOT IN ('N306', 'N316', 'N326')
+            AND C.DISTR_CHAN_CD <> '81'
+
+    WHERE
+        DDC.DELIV_CAT_ID = 'J'
+        AND DDC.GOODS_ISS_IND = 'Y'
+        AND DDC.DELIV_QTY > 0
+        AND DDC.ACTL_GOODS_ISS_DT IS NOT NULL
+        AND DDC.ACTL_GOODS_ISS_DT BETWEEN ADD_MONTHS(CURRENT_DATE-1, -3) - (EXTRACT(DAY FROM ADD_MONTHS(CURRENT_DATE-1, -3)) -1) AND CURRENT_DATE-1
+
+    GROUP BY
+        TYP
+        , DESCR
+        , C.SALES_ORG_CD
+        , C.DISTR_CHAN_CD
+        , C.CUST_GRP_ID
+        , C.OWN_CUST_ID
+        , DDC.SHIP_TO_CUST_ID
+        , M.PBU_NBR
+        , M.MKT_CTGY_MKT_AREA_NBR
+        , DDC.MATL_ID
+        , DDC.DELIV_LINE_FACILITY_ID
+        , DDC.ACTL_GOODS_ISS_DT
+        , DDC.QTY_UNIT_MEAS_ID
+
+    ) ODD
+
+GROUP BY
+    ODD.SALES_ORG_CD
+    , ODD.DISTR_CHAN_CD
+    , ODD.CUST_GRP_ID
+    --, ODD.OWN_CUST_ID
+    --, ODD.SHIP_TO_CUST_ID
+    , ODD.PBU_NBR
+    , ODD.CATEGORY_CD
+    , ODD.MATL_ID
+    --, ODD.FACILITY_ID
+    , ODD.BUS_DT
+    , ODD.QTY_UOM

@@ -1,0 +1,165 @@
+Data Category
+CAST('R32' AS VARCHAR(3))
+CAST('MM' AS VARCHAR(3))
+
+--------
+
+DATA_TYPE -- Description / Sort Key
+CAST('BI' AS VARCHAR(25)) -- BEGINNING INVENTORY / 0
+CAST('EI' AS VARCHAR(25)) -- ENDING INVENTORY / 100
+CAST('CI' AS VARCHAR(25)) -- CALCULATED INVENTORY / 98
+CAST('AD' AS VARCHAR(25)) -- ADJUSTMENTS / 99
+
+CAST('GI' AS VARCHAR(25)) -- GOODS ISSUE TO CUSTOMERS / 1-4
+CAST('PC' AS VARCHAR(25)) -- PRODUCTION CREDITS / 5-7
+CAST('IP' AS VARCHAR(25)) -- IMPORT POST / 9-11
+CAST('IC' AS VARCHAR(25)) -- IMPORT CANCEL / 12-15
+
+CAST('IL' AS VARCHAR(25)) -- INVENTORY LOSS / 21-23
+CAST('IG' AS VARCHAR(25)) -- INVENTORY GAIN / 24-27
+CAST('RR' AS VARCHAR(25)) -- RETURN RECEIPTED / 28-30
+
+CAST('TO' AS VARCHAR(25)) -- STOCK TRANSFER RECEIPTED / 31-33
+CAST('TI' AS VARCHAR(25)) -- STOCK TRANSFER RECEIPTED / 34-36
+CAST('TR' AS VARCHAR(25)) -- STOCK TRANSFER RECEIPTED / 37-39
+
+CAST('GC' AS VARCHAR(25)) -- GOODS ISSUE FOR CONSUMPTION / 58-60
+CAST('TF' AS VARCHAR(25)) -- STOCK STATUS TRANSFER / 61-63
+
+CAST('NC' AS VARCHAR(25)) -- UNCLASSIFIED / 88-90
+
+
+-- cognos description case statement
+CASE
+	WHEN [Union1].[DATA_TYPE] = 'BI'
+		THEN 'Beginning Inventory'
+	WHEN [Union1].[DATA_TYPE] = 'EI'
+		THEN 'Ending Inventory'
+	WHEN [Union1].[DATA_TYPE] = 'CI'
+		THEN 'Calculated Inventory'
+	WHEN [Union1].[DATA_TYPE] = 'AD'
+		THEN 'Adjustments'
+	WHEN [Union1].[DATA_TYPE] LIKE 'GI%'
+		THEN 'Goods Issue'
+	WHEN [Union1].[DATA_TYPE] LIKE 'PC%'
+		THEN 'Production Credits'
+	WHEN [Union1].[DATA_TYPE] LIKE 'IP%'
+		THEN 'Inbound Import'
+	WHEN [Union1].[DATA_TYPE] LIKE 'IC%'
+		THEN 'Import Cancel'
+	WHEN [Union1].[DATA_TYPE] LIKE 'IL%'
+		THEN 'Inventory Loss'
+	WHEN [Union1].[DATA_TYPE] LIKE 'IG%'
+		THEN 'Inventory Gain'
+	WHEN [Union1].[DATA_TYPE] LIKE 'RR%'
+		THEN 'Return Receipted'
+	WHEN [Union1].[DATA_TYPE] LIKE 'TO%'
+		THEN 'Stock Transfer Outbound'
+	WHEN [Union1].[DATA_TYPE] LIKE 'Ti%'
+		THEN 'Stock Transfer Inbound'
+	WHEN [Union1].[DATA_TYPE] LIKE 'TR%'
+		THEN 'Stock Transfer Receipt'
+	WHEN [Union1].[DATA_TYPE] LIKE 'GC%'
+		THEN 'Goods Issue for Consumption'
+	WHEN [Union1].[DATA_TYPE] LIKE 'TF%'
+		THEN 'Stock Status Transfer'
+	WHEN [Union1].[DATA_TYPE] LIKE 'NC%'
+		THEN 'Unclassified'
+	ELSE 'Undefined Description'
+END
+||
+CASE
+	WHEN [Union1].[DATA_TYPE] LIKE '%CCPO'
+		THEN 'Counted Current, Posted Other'
+	WHEN [Union1].[DATA_TYPE] LIKE '%PCCO'
+		THEN 'Posted Current, Counted Other'
+	ELSE ''
+END
+
+-- cognos description sort key
+CASE
+	WHEN [Union1].[DATA_TYPE] = 'BI'
+		THEN 0
+	WHEN [Union1].[DATA_TYPE] = 'EI'
+		THEN 100
+	WHEN [Union1].[DATA_TYPE] = 'CI'
+		THEN 98
+	WHEN [Union1].[DATA_TYPE] = 'AD'
+		THEN 99
+	WHEN [Union1].[DATA_TYPE] LIKE 'GI%'
+		THEN 1
+	WHEN [Union1].[DATA_TYPE] LIKE 'PC%'
+		THEN 4
+	WHEN [Union1].[DATA_TYPE] LIKE 'IP%'
+		THEN 7
+	WHEN [Union1].[DATA_TYPE] LIKE 'IC%'
+		THEN 22
+	WHEN [Union1].[DATA_TYPE] LIKE 'IL%'
+		THEN 25
+	WHEN [Union1].[DATA_TYPE] LIKE 'IG%'
+		THEN 31
+	WHEN [Union1].[DATA_TYPE] LIKE 'RR%'
+		THEN 37
+	WHEN [Union1].[DATA_TYPE] LIKE 'TO%'
+		THEN 43
+	WHEN [Union1].[DATA_TYPE] LIKE 'Ti%'
+		THEN 49
+	WHEN [Union1].[DATA_TYPE] LIKE 'TR%'
+		THEN 58
+	WHEN [Union1].[DATA_TYPE] LIKE 'GC%'
+		THEN 67
+	WHEN [Union1].[DATA_TYPE] LIKE 'TF%'
+		THEN 73
+	WHEN [Union1].[DATA_TYPE] LIKE 'NC%'
+		THEN 110
+	ELSE 125
+END
++
+CASE
+	WHEN [Union1].[DATA_TYPE] LIKE '%CCPO'
+		THEN 1
+	WHEN [Union1].[DATA_TYPE] LIKE '%PCCO'
+		THEN 2
+	ELSE 0
+END
+
+
+-- mm aliases for cognos
+Report Month Date
+Material ID
+Facility ID
+Vendor ID
+Customer ID
+Unit of Measure
+Item Qty
+Transaction Type Code
+Accounting Doc Type Code
+Debit Credit Ind
+Movement Type Code
+Special Stock Type Code
+Movement Ind
+Receipt Ind
+Consumption Ind
+
+
+
+[Sales Org Code]
+[Distribution Channel Code]
+[Associate Brand ID]
+[Super Brand ID]
+
+([Sales Org Code] IN ('N301', 'N311', 'N321', 'N331') AND [Super Brand ID] = '01') 
+OR ([Sales Org Code] IN ('N301', 'N311', 'N321', 'N331') AND [Associate Brand ID] = '10')
+OR ([Sales Org Code] IN ('N301', 'N311', 'N321', 'N331') AND [Associate Brand ID] = '11')
+OR ([Sales Org Code] IN ('N301', 'N311', 'N321', 'N331') AND [Associate Brand ID] = '13')
+OR ([Sales Org Code] IN ('N301', 'N311', 'N321', 'N331') AND [Super Brand ID] = '03')
+OR ([Super Brand ID] = '05')
+OR ([Sales Org Code] IN ('N303', 'N313') AND [Distribution Channel Code] IN ('30', '31') AND [Super Brand ID] = '01')
+OR ([Sales Org Code] IN ('N303', 'N313') AND [Distribution Channel Code] IN ('30', '31') AND [Super Brand ID] = '02')
+OR ([Sales Org Code] IN ('N303', 'N313') AND [Distribution Channel Code] IN ('30', '31') AND [Super Brand ID] = '03')
+OR ([Sales Org Code] IN ('N302', 'N312', 'N322', 'N332') AND [Super Brand ID] = '01')
+OR ([Sales Org Code] IN ('N303', 'N313') AND [Distribution Channel Code] IN ('32') AND [Super Brand ID] = '01')
+OR ([Sales Org Code] IN ('N302', 'N312') AND [Super Brand ID] = '03') 
+OR ([Sales Org Code] IN ('N322') AND [Super Brand ID] = '03')
+OR ([Sales Org Code] IN ('N323') AND [Distribution Channel Code] = '32' AND [Super Brand ID] = '03')
+

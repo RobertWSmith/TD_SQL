@@ -1,0 +1,39 @@
+﻿SELECT
+    FISCAL_YR
+    , DELIV_DOC_ID
+    , DELIV_DOC_ITM_ID
+
+    , SLS_DOC_FISCAL_YR
+    , SLS_DOC_ID
+    , SLS_DOC_ITM_ID
+
+    , SD_DOC_CTGY_CD
+    , ITM_CTGY_CD
+    , DELIV_CTGY_CD
+
+    , SRC_CRT_USR_ID
+    , SRC_CRT_TS
+    , SRC_UPD_DT
+
+    , MATL_ID
+    , BATCH_NBR
+    , MATL_GRP_CD
+    , MATL_HIER_ID
+
+    , FACILITY_ID
+    , STOR_LOC_CD
+
+    , BASE_UOM_CD
+    , ACTL_DELIV_QTY
+
+    , MVT_TYP_CD
+    , AVAIL_CHK_GRP_CD
+
+    , DELIV_GRP_CD
+    , RET_IND
+    , CUST_GRP_ID_2
+
+FROM GDYR_VWS.DELIV_DOC_ITM
+
+WHERE
+    ORIG_SYS_ID = 2
