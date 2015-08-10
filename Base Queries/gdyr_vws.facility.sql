@@ -1,4 +1,6 @@
-﻿SELECT
+﻿
+
+SELECT
     F.FACILITY_ID
     , F.NAME
     , F.XTND_NAME
@@ -29,3 +31,4 @@ WHERE
     AND F.LANG_ID = 'EN'
     AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
     AND F.DISTR_CHAN_CD = '81'
+;

@@ -1,0 +1,265 @@
+﻿SELECT
+    OD.ORDER_FISCAL_YR
+    , OD.ORDER_ID
+    , OD.ORDER_LINE_NBR
+
+    , OD.CUST_PO_NBR
+    , OD.PO_TYPE_ID
+
+    , OD.ORDER_CAT_ID
+    , OD.ORDER_TYPE_ID
+    , IST.PROC_STA_CD
+
+    , OD.ORDER_DELIV_BLK_CD
+    , MAX(OD.DELIV_BLK_CD) AS SCHD_LN_DELIV_BLK_CD
+
+    , OD.SHIP_COND_ID
+    , OD.SPCL_PROC_ID
+    , OD.PROD_ALLCT_DETERM_PROC_ID
+    , OD.CUST_GRP2_CD
+
+    , CASE
+        WHEN OD.ORDER_DELIV_BLK_CD > '' OR SCHD_LN_DELIV_BLK_CD > ''
+            THEN 'Risk - Blocked'
+        WHEN OD.SPCL_PROC_ID IN ('OCGL')
+            THEN 'Risk - SPI Indicates Customer Req. Late GI'
+        WHEN OD.SPCL_PROC_ID IN ('OABR', 'OANS', 'OAWC', 'OAWT', 'OCGS', 'OCUA', 'OERR', 'OFPS', 'OMCR', 'OMNS', 'OMUO', 'ONRD', 'OWRA')
+            THEN 'Risk - Other SPI'
+        WHEN OD.SHIP_COND_ID IN ('00', 'LW')
+            THEN 'Risk - Will-Call'
+        WHEN OD.CUST_GRP2_CD IN ('MAN')
+            THEN 'Risk - Manual Release'
+        WHEN ZEROIFNULL(I.AVAIL_TO_PROM_QTY) < SUM(OD.CNFRM_QTY)
+            THEN 'Risk - Current ATP < Confirmed Qty'
+        WHEN MAX(OD.SCHED_LINE_NBR) > 1
+            THEN 'Risk - Confirmed past First Date'
+        WHEN OD.FACILITY_ID <> C.PRIM_SHIP_FACILITY_ID
+            THEN 'Risk - Out of Area'
+        ELSE 'Expected to GI In Month'
+        END AS AT_RISK_IND
+
+    , OD.SHIP_TO_CUST_ID
+    , C.CUST_NAME
+    , C.OWN_CUST_ID
+    , C.OWN_CUST_NAME
+
+    , C.SALES_ORG_CD
+    , C.SALES_ORG_NAME
+    , C.DISTR_CHAN_CD
+    , C.DISTR_CHAN_NAME
+    , C.CUST_GRP_ID
+    , C.CUST_GRP_NAME
+    , CASE 
+        WHEN C.SALES_ORG_CD IN ('N301', 'N311', 'N321', 'N307', 'N317', 'N336') OR (C.SALES_ORG_CD IN ('N303', 'N313', 'N323') AND C.DISTR_CHAN_CD IN ('30', '31'))
+            THEN 'Replacement'
+        ELSE 'OE'
+        END AS OE_REPL_IND
+
+    , OD.MATL_ID
+    , M.MATL_NO_8 || ' - ' || M.DESCR AS MATL_DESCR
+    , M.PBU_NBR
+    , M.PBU_NAME
+    , M.MKT_AREA_NBR
+    , M.MKT_AREA_NAME
+    , M.MKT_CTGY_MKT_AREA_NBR
+    , M.MKT_CTGY_MKT_AREA_NAME
+    , M.PROD_LINE_NBR
+    , M.PROD_LINE_NAME
+
+    , CASE
+        WHEN OD.FACILITY_ID IN ('N5US', 'N5CA')
+            THEN 'N5US / N5CA'
+        WHEN OD.FACILITY_ID = C.PRIM_SHIP_FACILITY_ID
+            THEN 'Primary LC'
+        ELSE 'Out of Area'
+        END AS TEST_PRIM_SHIP_FACILITY_ID
+    , C.PRIM_SHIP_FACILITY_ID
+    , OD.FACILITY_ID
+    , F.FACILITY_NAME
+
+    , OD.QTY_UNIT_MEAS_ID
+    , MAX(OD.ORDER_QTY) AS ORDER_QTY
+    , SUM(OD.CNFRM_QTY) AS SL_CNFRM_QTY
+    , SL_CNFRM_QTY - ZEROIFNULL(DLV.TOT_DELIV_QTY) AS NET_SL_CNFRM_QTY
+    , ZEROIFNULL(DLV.IN_PROC_QTY) AS IN_PROCESS_QTY
+    , ZEROIFNULL(DLV.AGID_QTY) AS AGID_QTY
+
+    , ZEROIFNULL(I.AVAIL_TO_PROM_QTY) AS ATP_INV_QTY
+    , ZEROIFNULL(I.TOT_QTY) AS TOT_INV_QTY
+    , ZEROIFNULL(I.IN_TRANS_QTY) AS IN_TRANS_INV_QTY
+
+    , OD.FRST_MATL_AVL_DT
+    , OD.FRST_PLN_GOODS_ISS_DT
+    , OD.FRST_RDD
+    , OD.FC_MATL_AVL_DT
+    , OD.FC_PLN_GOODS_ISS_DT
+    , OD.FRST_PROM_DELIV_DT
+
+FROM NA_BI_VWS.ORDER_DETAIL OD
+
+    INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+        ON CAL.DAY_DATE = OD.PLN_GOODS_ISS_DT
+
+    INNER JOIN GDYR_BI_VWS.NAT_CUST_HIER_DESCR_EN_CURR C
+        ON C.SHIP_TO_CUST_ID = OD.SHIP_TO_CUST_ID
+
+    INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR M
+        ON M.MATL_ID = OD.MATL_ID
+
+    INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+        ON F.FACILITY_ID = OD.FACILITY_ID
+        AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+        AND F.DISTR_CHAN_CD = '81'
+
+    LEFT OUTER JOIN NA_BI_VWS.FACL_MATL_INV I
+        ON I.MATL_ID = OD.MATL_ID
+        AND I.FACILITY_ID = OD.FACILITY_ID
+        AND I.DAY_DT = CURRENT_DATE-1
+
+    INNER JOIN NA_BI_VWS.OPEN_ORDER_ORDLN_CURR OOL
+        ON OOL.ORDER_FISCAL_YR = OD.ORDER_FISCAL_YR
+        AND OOL.ORDER_ID = OD.ORDER_ID
+        AND OOL.ORDER_LINE_NBR = OD.ORDER_LINE_NBR
+
+    INNER JOIN NA_BI_VWS.SD_DOC_STA HST
+        ON HST.FISCAL_YR = OD.ORDER_FISCAL_YR
+        AND HST.SD_DOC_ID = OD.ORDER_ID
+        AND HST.DOC_CTGY_ID = OD.ORDER_CAT_ID
+        AND HST.EXP_DT = CAST('5555-12-31' AS DATE)
+        AND HST.ORIG_SYS_ID = 2
+        -- STILL OPEN FILTER
+        AND HST.PROC_STA_CD IN ('A', 'B')
+
+    INNER JOIN NA_BI_VWS.SD_DOC_ITM_STA IST
+        ON IST.FISCAL_YR = OD.ORDER_FISCAL_YR
+        AND IST.SD_DOC_ID = OD.ORDER_ID
+        AND IST.SD_DOC_ITM_ID = OD.ORDER_LINE_NBR
+        AND IST.EXP_DT = CAST('5555-12-31' AS DATE)
+        AND IST.ORIG_SYS_ID = 2
+        -- STILL OPEN FILTER
+        AND IST.PROC_STA_CD IN ('A', 'B')
+
+    LEFT OUTER JOIN (
+            SELECT
+                D.ORDER_FISCAL_YR
+                , D.ORDER_ID
+                , D.ORDER_LINE_NBR
+                , D.QTY_UNIT_MEAS_ID
+                , SUM(D.DELIV_QTY) AS TOT_DELIV_QTY
+                , SUM(CASE WHEN D.ACTL_GOODS_ISS_DT IS NULL THEN D.DELIV_QTY ELSE 0 END) AS IN_PROC_QTY
+                , TOT_DELIV_QTY - IN_PROC_QTY AS AGID_QTY
+
+            FROM NA_BI_VWS.DELIVERY_DETAIL_CURR D
+            
+            WHERE
+                D.DELIV_CAT_ID = 'J'
+                AND (D.ORDER_FISCAL_YR, D.ORDER_ID, D.ORDER_LINE_NBR) IN (
+                    SELECT
+                        I.FISCAL_YR
+                        , I.SD_DOC_ID
+                        , I.SD_DOC_ITM_ID
+                    FROM NA_BI_VWS.SD_DOC_STA H
+
+                        INNER JOIN NA_BI_VWS.SD_DOC_ITM_STA I
+                            ON I.FISCAL_YR = H.FISCAL_YR
+                            AND I.SD_DOC_ID = H.SD_DOC_ID
+                            AND I.ORIG_SYS_ID = H.ORIG_SYS_ID
+                            AND I.EXP_DT = H.EXP_DT
+                            AND I.PROC_STA_CD IN ('A', 'B')
+
+                    WHERE
+                        H.EXP_DT = CAST('5555-12-31' AS DATE)
+                        AND H.ORIG_SYS_ID = 2
+                        AND H.DOC_CTGY_ID = 'C'
+                        AND H.PROC_STA_CD IN ('A', 'B')
+                )
+
+            GROUP BY
+                D.ORDER_FISCAL_YR
+                , D.ORDER_ID
+                , D.ORDER_LINE_NBR
+                , D.QTY_UNIT_MEAS_ID
+            ) DLV   
+        ON DLV.ORDER_FISCAL_YR = OD.ORDER_FISCAL_YR
+        AND DLV.ORDER_ID = OD.ORDER_ID
+        AND DLV.ORDER_LINE_NBR = OD.ORDER_LINE_NBR
+
+WHERE
+    OD.EXP_DT = CAST('5555-12-31' AS DATE)
+    AND OD.ORDER_CAT_ID = 'C'
+    AND OD.PO_TYPE_ID <> 'RO'
+    AND OD.REJ_REAS_ID = ''
+    AND M.PBU_NBR = '01'
+    
+    -- PGI <= END OF MONTH, BUT OPEN CONFIRMED
+    AND OOL.OPEN_CNFRM_QTY > 0
+    AND OD.PLN_GOODS_ISS_DT <= ADD_MONTHS((CURRENT_DATE-1), 1) - EXTRACT(DAY FROM ADD_MONTHS((CURRENT_DATE-1), 1))
+
+GROUP BY
+    OD.ORDER_FISCAL_YR
+    , OD.ORDER_ID
+    , OD.ORDER_LINE_NBR
+
+    , OD.CUST_PO_NBR
+    , OD.PO_TYPE_ID
+
+    , OD.ORDER_CAT_ID
+    , OD.ORDER_TYPE_ID
+    , IST.PROC_STA_CD
+
+    , OD.ORDER_DELIV_BLK_CD
+    --, MAX(OD.DELIV_BLK_CD) AS SCHD_LN_DELIV_BLK_CD
+
+    , OD.SHIP_COND_ID
+    , OD.SPCL_PROC_ID
+    , OD.PROD_ALLCT_DETERM_PROC_ID
+    , OD.CUST_GRP2_CD
+
+    --, AT_RISK_IND
+
+    , OD.SHIP_TO_CUST_ID
+    , C.CUST_NAME
+    , C.OWN_CUST_ID
+    , C.OWN_CUST_NAME
+
+    , C.SALES_ORG_CD
+    , C.SALES_ORG_NAME
+    , C.DISTR_CHAN_CD
+    , C.DISTR_CHAN_NAME
+    , C.CUST_GRP_ID
+    , C.CUST_GRP_NAME
+    , OE_REPL_IND
+
+    , OD.MATL_ID
+    , MATL_DESCR
+    , M.PBU_NBR
+    , M.PBU_NAME
+    , M.MKT_AREA_NBR
+    , M.MKT_AREA_NAME
+    , M.MKT_CTGY_MKT_AREA_NBR
+    , M.MKT_CTGY_MKT_AREA_NAME
+    , M.PROD_LINE_NBR
+    , M.PROD_LINE_NAME
+
+    , TEST_PRIM_SHIP_FACILITY_ID
+    , C.PRIM_SHIP_FACILITY_ID
+    , OD.FACILITY_ID
+    , F.FACILITY_NAME
+
+    , OD.QTY_UNIT_MEAS_ID
+    --, MAX(OD.ORDER_QTY) AS ORDER_QTY
+    --, SUM(OD.CNFRM_QTY) AS SL_CNFRM_QTY
+    --, NET_SL_CNFRM_QTY
+    , IN_PROCESS_QTY
+    , AGID_QTY
+
+    , ATP_INV_QTY
+    , TOT_INV_QTY
+    , IN_TRANS_INV_QTY
+
+    , OD.FRST_MATL_AVL_DT
+    , OD.FRST_PLN_GOODS_ISS_DT
+    , OD.FRST_RDD
+    , OD.FC_MATL_AVL_DT
+    , OD.FC_PLN_GOODS_ISS_DT
+    , OD.FRST_PROM_DELIV_DT

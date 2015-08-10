@@ -1,0 +1,307 @@
+﻿SELECT
+    CAL.DAY_DATE
+    , CAL.MONTH_DT
+    , CAL.TTL_DAYS_IN_MNTH
+    , CAL.DAY_OF_MONTH
+    , CAL.DAY_OF_QTR
+    , CAL.DAY_OF_YEAR
+    , CAL.DAY_OF_WEEK
+    , CAL.DAY_OF_WEEK_NAME_ABBREV
+    , CAL.DAY_OF_WEEK_NAME_DESC
+    , CAL.CAL_WK
+    , CAL.CAL_MTH
+    , CAL.CAL_YR
+    , CAL.MNTH
+    , CAL.MNTH_DESCR
+    , CAL.MNTH_NAME_ABBREV
+    , CAL.MONTH_OF_QUARTER
+    , CAL.QUARTER_OF_YEAR
+
+    , M.MATL_ID
+    , M.MATL_TYPE_ID
+    , M.PROD_LAUNCH_DT
+    , M.MATL_STA_ID
+    , M.MATL_STA_DT
+    , M.STK_CLASS_ID
+    , M.STK_CLASS_DT
+    , M.MATL_PRTY
+    , M.STK_STRAT_CD
+    , M.MATL_HIER_ID
+    , M.HVA_FLG
+
+    , MATL.MATL_NO_8 || ' - ' || MATL.DESCR AS MATL_DESCR
+    , MATL.PBU_NBR
+    , MATL.PBU_NAME
+    , MATL.MKT_AREA_NBR
+    , MATL.MKT_AREA_NAME
+    , MATL.PROD_LINE_NBR
+    , MATL.PROD_LINE_NAME
+    , MATL.MKT_CTGY_MKT_AREA_NBR
+    , MATL.MKT_CTGY_MKT_AREA_NAME
+    , MATL.MKT_CTGY_PROD_LINE_NBR
+    , MATL.MKT_CTGY_PROD_LINE_NAME
+    , MATL.PRTY_SRC_FACL_ID
+    , MATL.PRTY_SRC_FACL_NM
+
+    , FM.FACILITY_ID
+    , F.FACILITY_NAME
+
+    , FM.MRP_TYPE_ID
+    , FM.MRP_CNTRL_ID
+    , FM.SPCL_PRCU_TYP_CD
+    , FM.AVAIL_CHK_GRP_CD
+    , FM.MATL_ORIG_CNTRY_NAME_CD
+
+    , FM.OE_YIELD_PCT
+    , FM.EST_WKLY_PROD_QTY
+    , FM.DAYS_TO_DELIV
+    , FM.DAYS_TO_GOODS_RCPT
+    , FM.DAYS_TO_RPLN
+    , FM.LOT_SZ_PERD_ID
+    , FM.MAX_STK_LVL_QTY
+    , FM.MAX_RORD_LOT_SZ_QTY
+    , FM.MIN_RORD_LOT_SZ_QTY
+    , FM.RORD_PT_QTY
+
+    , FM.QUAL_INSP_IND
+
+    , FM.SAFE_STK_QTY
+
+    , ZEROIFNULL(I.TOT_QTY) AS TOT_QTY
+    , ZEROIFNULL(I.IN_TRANS_QTY) AS IN_TRANS_QTY
+    , ZEROIFNULL(I.AVAIL_TO_PROM_QTY) AS AVAIL_TO_PROM_QTY
+    , ZEROIFNULL(SHP.CUST_DELIV_QTY) AS CUST_DELIV_QTY
+    , ZEROIFNULL(SHP.STO_DELIV_QTY) AS STO_DELIV_QTY
+    , ZEROIFNULL(SHP.FOC_DELIV_QTY) AS FOC_DELIV_QTY
+    , ZEROIFNULL(SHP.RETURN_RCPT_QTY) AS RETURN_RCPT_QTY
+    , ZEROIFNULL(SHP.OTHER_DELIV_QTY) AS OTHER_DELIV_QTY
+    , ZEROIFNULL(PRD.PROD_QTY) AS PROD_QTY
+    , CAST(ZEROIFNULL(PLN.PLN_QTY) AS DECIMAL(15,3)) AS PLN_QTY
+
+FROM GDYR_BI_VWS.GDYR_CAL CAL
+
+    -- MARA STATUS ON BEGINNING OF WEEK
+    INNER JOIN GDYR_VWS.MATL M
+        ON CAL.DAY_DATE BETWEEN M.EFF_DT AND M.EXP_DT
+        AND M.ORIG_SYS_ID = 2
+
+    -- CURRENT MATL STATUS & DESCRIPTIONS
+    INNER JOIN GDYR_BI_VWS.NAT_MATL_HIER_DESCR_EN_CURR MATL
+        ON MATL.MATL_ID = M.MATL_ID
+
+    -- MARC STATUS ON BEGINNING OF WEEK
+    INNER JOIN GDYR_VWS.FACILITY_MATL FM
+        ON FM.MATL_ID = M.MATL_ID
+        AND FM.ORIG_SYS_ID = M.ORIG_SYS_ID
+        AND CAL.DAY_DATE BETWEEN FM.EFF_DT AND FM.EXP_DT
+
+    -- FACILITY MASTER, LIMITS TO NAT LOCATIONS
+    INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+        ON F.FACILITY_ID = FM.FACILITY_ID
+        AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+        AND F.DISTR_CHAN_CD = '81'
+
+    -- BEGINNING OF WEEK INVENTORY
+    LEFT OUTER JOIN NA_BI_VWS.FACL_MATL_INV I
+        ON I.FACILITY_ID = FM.FACILITY_ID
+        AND I.MATL_ID = FM.MATL_ID
+        AND I.DAY_DT = CAL.DAY_DATE
+
+    -- SHIPMENTS BY ACTUAL GOODS ISSUE DATE (WHOLE WEEK)
+    LEFT OUTER JOIN (
+            SELECT
+                CAL.CAL_WK
+                , CAL.CAL_YR
+                , D.DELIV_LINE_FACILITY_ID
+                , D.MATL_ID
+                , SUM(D.DELIV_QTY) AS TOT_DELIV_QTY
+                , SUM(CASE WHEN D.SD_DOC_CTGY_CD = 'C' THEN D.DELIV_QTY ELSE 0 END) AS CUST_DELIV_QTY
+                , SUM(CASE WHEN D.SD_DOC_CTGY_CD = 'V' THEN D.DELIV_QTY ELSE 0 END) AS STO_DELIV_QTY
+                , SUM(CASE WHEN D.SD_DOC_CTGY_CD = 'I' THEN D.DELIV_QTY ELSE 0 END) AS FOC_DELIV_QTY
+                , SUM(CASE WHEN D.SD_DOC_CTGY_CD = 'H' THEN D.DELIV_QTY ELSE 0 END) AS RETURN_RCPT_QTY
+                , TOT_DELIV_QTY - (CUST_DELIV_QTY + STO_DELIV_QTY + FOC_DELIV_QTY + RETURN_RCPT_QTY) AS OTHER_DELIV_QTY
+
+            FROM NA_BI_VWS.DELIVERY_DETAIL_CURR D
+
+                INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+                    ON M.MATL_ID = D.MATL_ID
+
+                INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+                    ON CAL.DAY_DATE = D.ACTL_GOODS_ISS_DT
+
+                INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+                    ON F.FACILITY_ID = D.DELIV_LINE_FACILITY_ID
+                    AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+                    AND F.DISTR_CHAN_CD = '81'
+
+            WHERE
+                D.ACTL_GOODS_ISS_DT BETWEEN CURRENT_DATE-190 AND CURRENT_DATE+100
+                AND M.PBU_NBR IN ('01', '03')
+                AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+            GROUP BY
+                CAL.CAL_WK
+                , CAL.CAL_YR
+                , D.DELIV_LINE_FACILITY_ID
+                , D.MATL_ID
+            ) SHP
+        ON SHP.CAL_WK = CAL.CAL_WK
+        AND SHP.CAL_YR = CAL.CAL_YR
+        AND SHP.DELIV_LINE_FACILITY_ID = FM.FACILITY_ID
+        AND SHP.MATL_ID = FM.MATL_ID
+
+    -- PRODUCTION CREDITS (WHOLE WEEK)
+    LEFT OUTER JOIN (
+            SELECT
+                CAL.CAL_WK
+                , CAL.CAL_YR
+                , PC.FACILITY_ID
+                , PC.MATL_ID
+                , SUM(PC.PROD_QTY) AS PROD_QTY
+
+            FROM NA_BI_VWS.PROD_CREDIT_DY PC
+
+                INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+                    ON M.MATL_ID = PC.MATL_ID
+
+                INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+                    ON CAL.DAY_DATE = PC.PROD_DT
+
+            WHERE
+                PC.PROD_DT BETWEEN CURRENT_DATE-190 AND CURRENT_DATE+100
+                AND M.PBU_NBR IN ('01', '03')
+                AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+            GROUP BY
+                CAL.CAL_WK
+                , CAL.CAL_YR
+                , PC.FACILITY_ID
+                , PC.MATL_ID
+        ) PRD
+        ON PRD.CAL_WK = CAL.CAL_WK
+        AND PRD.CAL_YR = CAL.CAL_YR
+        AND PRD.FACILITY_ID = FM.FACILITY_ID
+        AND PRD.MATL_ID = FM.MATL_ID
+
+    -- WEEKLY PRODUCTION PLANS
+    LEFT OUTER JOIN (
+
+            SELECT
+                CAL.CAL_WK
+                , CAL.CAL_YR
+                , PP.PLN_MATL_ID
+                , PP.FACILITY_ID
+                , PP.PLN_QTY
+
+            FROM GDYR_VWS.PROD_PLN PP
+
+                INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+                    ON CAL.DAY_DATE = PP.PROD_WK_DT
+
+                INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+                    ON M.MATL_ID = PP.PLN_MATL_ID
+
+                INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+                    ON F.FACILITY_ID = PP.FACILITY_ID
+                    AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+                    AND F.DISTR_CHAN_CD = '81'
+
+            WHERE
+                PP.PROD_PLN_CD IN ('0', '7')
+                AND PP.SBU_ID = 2
+                AND CAST(PP.PROD_WK_DT-3 AS DATE) BETWEEN PP.EFF_DT AND PP.EXP_DT
+                AND PP.PROD_WK_DT BETWEEN CURRENT_DATE-190 AND CURRENT_DATE
+
+                AND M.PBU_NBR IN ('01', '03')
+                AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+            UNION ALL
+
+            -- FUTURE WEEKS WITHIN PLANNER HORIZON
+
+            SELECT
+                CAL.CAL_WK
+                , CAL.CAL_YR
+                , PP.PLN_MATL_ID
+                , PP.FACILITY_ID
+                , PP.PLN_QTY
+
+            FROM GDYR_VWS.PROD_PLN PP
+
+                INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+                    ON CAL.DAY_DATE = PP.PROD_WK_DT
+
+                INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+                    ON M.MATL_ID = PP.PLN_MATL_ID
+
+                INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+                    ON F.FACILITY_ID = PP.FACILITY_ID
+                    AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+                    AND F.DISTR_CHAN_CD = '81'
+
+            WHERE
+                PP.PROD_PLN_CD IN ('0', '7')
+                AND PP.SBU_ID = 2
+                AND PP.EXP_DT = DATE '5555-12-31'
+                AND PP.PROD_WK_DT BETWEEN CURRENT_DATE+1 AND CURRENT_DATE+56
+
+                AND M.PBU_NBR IN ('01', '03')
+                AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+            UNION ALL
+
+            -- PLAN CODE A, SNP PRODUCTION PLANS
+
+            SELECT
+                CAL.CAL_WK
+                , CAL.CAL_YR
+                , PP.PLN_MATL_ID
+                , PP.FACILITY_ID
+                , PP.PLN_QTY
+
+            FROM GDYR_VWS.PROD_PLN PP
+
+                INNER JOIN GDYR_BI_VWS.GDYR_CAL CAL
+                    ON CAL.DAY_DATE = PP.PROD_WK_DT
+
+                INNER JOIN GDYR_BI_VWS.NAT_MATL_CURR M
+                    ON M.MATL_ID = PP.PLN_MATL_ID
+
+                INNER JOIN GDYR_BI_VWS.NAT_FACILITY_EN_CURR F
+                    ON F.FACILITY_ID = PP.FACILITY_ID
+                    AND F.SALES_ORG_CD IN ('N306', 'N316', 'N326')
+                    AND F.DISTR_CHAN_CD = '81'
+
+            WHERE
+                PP.PROD_PLN_CD = 'A'
+                AND PP.SBU_ID = 2
+                AND PP.EXP_DT = DATE '5555-12-31'
+                AND PP.PROD_WK_DT BETWEEN CURRENT_DATE+57 AND CURRENT_DATE+100
+
+                AND M.PBU_NBR IN ('01', '03')
+                AND M.EXT_MATL_GRP_ID = 'TIRE'
+
+            ) PLN
+        ON PLN.CAL_WK = CAL.CAL_WK
+        AND PLN.CAL_YR = CAL.CAL_YR
+        AND PLN.PLN_MATL_ID = FM.MATL_ID
+        AND PLN.FACILITY_ID = FM.FACILITY_ID
+
+WHERE
+    CAL.DAY_DATE BETWEEN CURRENT_DATE-180 AND CURRENT_DATE+90
+    AND CAL.DAY_OF_WEEK = 1
+
+    AND M.PBU_NBR IN ('01', '03')
+    AND M.EXT_MATL_GRP_ID = 'TIRE'
+    AND M.MATL_STA_ID <> 'DN'
+
+    AND (
+        I.TOT_QTY IS NOT NULL
+        OR I.IN_TRANS_QTY IS NOT NULL
+        OR I.AVAIL_TO_PROM_QTY IS NOT NULL
+        OR SHP.TOT_DELIV_QTY IS NOT NULL
+        OR PRD.PROD_QTY IS NOT NULL
+        OR PLN.PLN_QTY IS NOT NULL
+        )
+    
+    AND M.MATL_ID = '000000000000019032'
